@@ -1,0 +1,3685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Shape Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0b0b12;
+  --scene-bg: #000000;
+  --panel-bg: rgba(255,255,255,0.035);
+  --panel-border: rgba(255,255,255,0.07);
+  --text: rgba(255,255,255,0.82);
+  --text-dim: rgba(255,255,255,0.38);
+  --accent: #a78bfa;
+  --panel-w: 292px;
+}
+
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); font-family:'DM Sans',sans-serif; color:var(--text); user-select:none; }
+
+#app { display:flex; flex-direction:column; width:100vw; height:100vh; }
+
+#topbar {
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 14px;
+  border-bottom:1px solid var(--panel-border);
+  background:rgba(9,9,18,0.82);
+  backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+}
+.topbar-title {
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.topbar-dot {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:conic-gradient(from 10deg, #38bdf8, #a78bfa, #f472b6, #34d399, #38bdf8);
+  box-shadow:0 0 10px rgba(167,139,250,0.45);
+}
+.topbar-meta {
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.08em;
+  color:var(--text-dim);
+}
+.topbar-meta a {
+  color:var(--text);
+  text-decoration:none;
+}
+.topbar-meta a strong {
+  font-weight:700;
+  color:#ffffff;
+}
+.topbar-meta a:hover { color:#ffffff; }
+
+#workspace {
+  flex:1;
+  min-height:0;
+  display:flex;
+}
+
+#canvas-wrap {
+  flex:1; min-width:0; position:relative;
+  background: var(--scene-bg);
+}
+#canvas-wrap.transparent-preview {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #d8d8d8 25%, transparent 25%),
+    linear-gradient(-45deg, #d8d8d8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d8d8d8 75%),
+    linear-gradient(-45deg, transparent 75%, #d8d8d8 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+#canvas-wrap canvas { display:block; width:100%!important; height:100%!important; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width:var(--panel-w); height:100%;
+  display:flex; flex-direction:column;
+  padding:18px 14px 16px;
+  background:rgba(9,9,18,0.82);
+  backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  overflow-y:auto; overflow-x:hidden;
+  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.08) transparent;
+  gap:0;
+}
+.sidebar::-webkit-scrollbar { width:3px; }
+.sidebar::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:2px; }
+#sidebar-left { border-right:1px solid var(--panel-border); }
+#sidebar-right { border-left:1px solid var(--panel-border); }
+
+/* ── Section ── */
+.sec { margin-bottom:18px; }
+.sec-label {
+  font-size:9px; letter-spacing:0.18em; text-transform:uppercase;
+  color:var(--text-dim); font-family:'DM Mono',monospace;
+  margin-bottom:8px;
+  display:flex; align-items:center; gap:6px;
+}
+.sec-label::before {
+  content:''; display:block; width:5px; height:5px;
+  border-radius:50%; background:var(--accent); opacity:0.6; flex-shrink:0;
+}
+
+.divider { height:1px; background:var(--panel-border); margin:14px 0; }
+
+/* ── Shapes ── */
+.shape-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
+.shape-btn {
+  aspect-ratio:1; background:var(--panel-bg); border:1px solid var(--panel-border);
+  border-radius:9px; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:3px; transition:all 0.16s; padding:4px 2px 3px;
+}
+.shape-btn svg { width:18px; height:18px; opacity:1; color:#fff; transition:opacity 0.16s; }
+.shape-btn span { font-size:7px; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-dim); font-family:'DM Mono',monospace; transition:color 0.16s; }
+.shape-btn:hover { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.13); }
+.shape-btn.active { background:rgba(167,139,250,0.14); border-color:rgba(167,139,250,0.45); }
+.shape-btn.active svg { opacity:1; }
+.shape-btn.active span { color:var(--accent); }
+
+/* ── Theme swatches ── */
+.theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.theme-actions { display:flex; gap:6px; margin-top:6px; }
+.theme-actions .btn { padding:7px 6px; font-size:9px; }
+.theme-btn {
+  padding:7px 5px; border-radius:9px; border:1px solid var(--panel-border);
+  background:var(--panel-bg); cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:5px; transition:all 0.16s;
+}
+.theme-swatch { width:24px; height:24px; border-radius:50%; }
+.theme-btn span { font-size:8px; color:var(--text-dim); white-space:nowrap; font-family:'DM Mono',monospace; transition:color 0.16s; }
+.theme-btn:hover { background:rgba(255,255,255,0.06); }
+.theme-btn.active { border-color:rgba(167,139,250,0.5); background:rgba(167,139,250,0.1); }
+.theme-btn.active span { color:var(--accent); }
+
+/* ── Color pickers ── */
+.color-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+.color-item { display:flex; flex-direction:column; align-items:center; gap:3px; position:relative; }
+.color-item label { font-size:8px; color:var(--text-dim); font-family:'DM Mono',monospace; }
+input[type=color] {
+  -webkit-appearance:none; width:100%; height:28px;
+  border:1px solid var(--panel-border); border-radius:6px;
+  background:none; cursor:pointer; padding:2px;
+}
+input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+input[type=color]::-webkit-color-swatch { border-radius:4px; border:none; }
+
+/* Remove button on color item */
+.color-remove {
+  position:absolute; top:-5px; right:-5px;
+  width:14px; height:14px; border-radius:50%;
+  background:rgba(239,68,68,0.7); border:none; cursor:pointer;
+  color:#fff; font-size:9px; line-height:14px; text-align:center;
+  display:none; padding:0; transition:background 0.15s;
+  z-index:2;
+}
+.color-item:hover .color-remove { display:block; }
+.color-remove:hover { background:rgba(239,68,68,1); }
+
+/* Add color button */
+.add-color-btn {
+  aspect-ratio:1; height:28px; width:100%;
+  border:1px dashed rgba(255,255,255,0.2); border-radius:6px;
+  background:transparent; color:rgba(255,255,255,0.3);
+  font-size:16px; cursor:pointer; transition:all 0.15s;
+  display:flex; align-items:center; justify-content:center;
+}
+.add-color-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(167,139,250,0.08); }
+
+/* ── Sliders ── */
+.slider-wrap { margin-bottom:11px; }
+.slider-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.slider-label { font-size:10px; color:var(--text-dim); }
+.slider-val { font-size:9px; font-family:'DM Mono',monospace; color:var(--accent); min-width:26px; text-align:right; }
+input[type=range] {
+  -webkit-appearance:none; appearance:none; width:100%; height:2px;
+  background:rgba(255,255,255,0.08); border-radius:2px; outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+  background:var(--accent); cursor:pointer; box-shadow:0 0 6px rgba(167,139,250,0.55); transition:transform 0.14s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.25); }
+input[type=range]::-moz-range-thumb {
+  width:12px; height:12px; border-radius:50%; background:var(--accent);
+  cursor:pointer; border:none; box-shadow:0 0 6px rgba(167,139,250,0.55);
+}
+
+/* ── Select ── */
+.styled-select {
+  width:100%; padding:7px 9px; border-radius:8px; border:1px solid var(--panel-border);
+  background:var(--panel-bg); color:var(--text); font-family:'DM Sans',sans-serif;
+  font-size:11px; cursor:pointer; outline:none; appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 9px center;
+  padding-right:28px;
+}
+.styled-select:focus { border-color:rgba(167,139,250,0.4); }
+.styled-select option { background:#1a1a2e; color:#fff; }
+
+/* ── Toggle ── */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+.toggle-label { font-size:10px; color:var(--text-dim); }
+.toggle { position:relative; width:32px; height:17px; cursor:pointer; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-track { position:absolute; inset:0; background:rgba(255,255,255,0.08); border-radius:9px; transition:background 0.2s; }
+.toggle input:checked + .toggle-track { background:rgba(167,139,250,0.55); }
+.toggle-thumb { position:absolute; left:2px; top:2px; width:13px; height:13px; background:white; border-radius:50%; transition:transform 0.18s; box-shadow:0 1px 3px rgba(0,0,0,0.4); }
+.toggle input:checked ~ .toggle-thumb { transform:translateX(15px); }
+
+/* ── Playback ── */
+.playback-row { display:flex; gap:6px; align-items:center; margin-bottom:12px; }
+.icon-btn {
+  width:32px; height:32px; border-radius:8px; border:1px solid var(--panel-border);
+  background:var(--panel-bg); color:var(--text); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all 0.16s; flex-shrink:0;
+}
+.icon-btn:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.15); }
+.icon-btn svg { width:13px; height:13px; }
+#rec-dot {
+  width:6px; height:6px; border-radius:50%; background:#ef4444;
+  display:none; margin-left:4px; animation:blink 0.9s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+/* ── Buttons ── */
+.btn-row { display:flex; gap:5px; margin-bottom:5px; }
+.btn {
+  flex:1; padding:8px 6px; border-radius:9px; border:1px solid var(--panel-border);
+  background:var(--panel-bg); color:var(--text); font-family:'DM Sans',sans-serif;
+  font-size:10px; cursor:pointer; text-align:center; transition:all 0.16s; white-space:nowrap;
+}
+.btn:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.15); }
+.btn.primary { background:rgba(167,139,250,0.18); border-color:rgba(167,139,250,0.38); color:var(--accent); }
+.btn.primary:hover { background:rgba(167,139,250,0.28); }
+.btn.danger { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); color:#f87171; animation:blink 1s ease-in-out infinite; }
+
+#canvas-bottom-controls {
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--panel-border);
+  border-radius:12px;
+  background:rgba(9,9,18,0.82);
+  backdrop-filter:blur(14px) saturate(1.35);
+  -webkit-backdrop-filter:blur(14px) saturate(1.35);
+  z-index:15;
+}
+.bottom-main-btn {
+  min-width:150px;
+  padding:9px 14px;
+  border-radius:10px;
+  border:1px solid rgba(167,139,250,0.42);
+  background:rgba(167,139,250,0.18);
+  color:#ffffff;
+  font-size:11px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.bottom-main-btn:hover { background:rgba(167,139,250,0.28); }
+.bottom-share-btn {
+  min-width:120px;
+  padding:9px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.08);
+  color:#ffffff;
+  font-size:10px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.bottom-share-btn:hover {
+  background:rgba(255,255,255,0.15);
+  border-color:rgba(255,255,255,0.34);
+}
+.bottom-link-btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:166px;
+  padding:9px 14px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.06);
+  color:#ffffff;
+  font-size:11px;
+  letter-spacing:0.02em;
+  text-decoration:none;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.bottom-link-btn:hover {
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.28);
+}
+#canvas-bottom-controls #rec-dot { margin-left:0; }
+
+#export-modal {
+  position:fixed;
+  inset:0;
+  z-index:70;
+  display:none;
+}
+#export-modal.open { display:block; }
+#export-modal .modal-backdrop {
+  position:absolute;
+  inset:0;
+  background:rgba(2,2,8,0.58);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+#export-modal .modal-panel {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:min(420px, calc(100vw - 24px));
+  max-height:min(82vh, 760px);
+  transform:translate(-50%, -50%);
+  overflow:auto;
+  padding:14px 14px 12px;
+  border-radius:14px;
+  border:1px solid var(--panel-border);
+  background:rgba(9,9,18,0.92);
+  backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+}
+#export-modal .modal-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+.modal-title {
+  font-size:10px;
+  font-family:'DM Mono',monospace;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:var(--text-dim);
+}
+.modal-close {
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  border:1px solid var(--panel-border);
+  background:var(--panel-bg);
+  color:var(--text);
+  cursor:pointer;
+}
+.modal-close:hover { background:rgba(255,255,255,0.08); }
+.export-tabs {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:6px;
+  margin-bottom:10px;
+}
+.export-tab {
+  border:1px solid var(--panel-border);
+  background:var(--panel-bg);
+  color:var(--text-dim);
+  border-radius:9px;
+  padding:7px 8px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  cursor:pointer;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+}
+.export-tab.active {
+  color:var(--accent);
+  border-color:rgba(167,139,250,0.45);
+  background:rgba(167,139,250,0.16);
+}
+.export-tab-ico { opacity:0.95; font-size:15px; line-height:1; }
+.export-tab-label { font-size:10px; line-height:1.1; letter-spacing:0.06em; }
+.export-pane { display:none; }
+.export-pane.active { display:block; }
+.export-action { margin-top:8px; }
+#export-video { width:100%; }
+#export-image-action { width:100%; }
+#exportScalePixels {
+  margin-top:6px;
+  font-size:10px;
+  color:var(--text-dim);
+  font-family:'DM Mono',monospace;
+}
+.chip-group {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.chip {
+  border:1px solid var(--panel-border);
+  background:var(--panel-bg);
+  color:var(--text-dim);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:10px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.chip.active {
+  color:var(--accent);
+  border-color:rgba(167,139,250,0.45);
+  background:rgba(167,139,250,0.18);
+}
+.code-tools { display:flex; gap:6px; margin-top:8px; margin-bottom:8px; }
+.code-preview-title {
+  font-size:9px;
+  color:var(--text-dim);
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  margin-bottom:4px;
+  font-family:'DM Mono',monospace;
+}
+#code-loop-note {
+  margin-top:6px;
+  font-size:10px;
+  color:var(--text-dim);
+  line-height:1.35;
+}
+#code-behavior-note {
+  margin-top:6px;
+  font-size:10px;
+  color:var(--text-dim);
+  line-height:1.35;
+}
+#code-preview-image {
+  width:100%;
+  height:124px;
+  border:1px solid var(--panel-border);
+  border-radius:9px;
+  background:#06060d;
+  object-fit:contain;
+}
+#code-output {
+  margin-top:8px;
+  border:1px solid var(--panel-border);
+  border-radius:9px;
+  background:rgba(255,255,255,0.02);
+  color:#d9d9e9;
+  font-size:11px;
+  line-height:1.35;
+  font-family:'DM Mono',monospace;
+  max-height:220px;
+  overflow:auto;
+  padding:10px;
+  white-space:pre;
+}
+
+#hud-sticky {
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  z-index:20;
+  min-width:114px;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--panel-border);
+  background:rgba(9,9,18,0.78);
+  backdrop-filter:blur(14px) saturate(1.3);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  color:var(--text-dim);
+  line-height:1.7;
+  pointer-events:none;
+}
+#hud-sticky .status-row { display:flex; justify-content:space-between; gap:10px; }
+
+/* ── Sharp Fold controls block ── */
+#sharp-controls {
+  background: rgba(244,114,182,0.05);
+  border: 1px solid rgba(244,114,182,0.18);
+  border-radius: 10px;
+  padding: 10px 10px 4px;
+  margin-bottom: 11px;
+}
+
+/* ── Fluid Glass controls block ── */
+#fluid-controls {
+  background: rgba(167,139,250,0.06);
+  border: 1px solid rgba(167,139,250,0.18);
+  border-radius: 10px;
+  padding: 10px 10px 4px;
+  margin-bottom: 11px;
+}
+
+/* ── Effect group container ── */
+.fx-group {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.fx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px 6px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.02);
+  transition: background 0.15s;
+  user-select: none;
+}
+.fx-header:hover { background: rgba(255,255,255,0.05); }
+.fx-title {
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fx-title-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--panel-border);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.fx-group.active .fx-title-dot { background: var(--accent); }
+.fx-val-badge {
+  font-size: 8px;
+  font-family: 'DM Mono', monospace;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.fx-group.active .fx-val-badge { opacity: 1; }
+.fx-chevron {
+  font-size: 8px;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.fx-group.open .fx-chevron { transform: rotate(180deg); }
+.fx-body {
+  display: none;
+  padding: 8px 10px 6px;
+  border-top: 1px solid var(--panel-border);
+}
+.fx-group.open .fx-body { display: block; }
+
+/* ── Material preset buttons ── */
+.mat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-bottom: 11px;
+}
+.mat-btn {
+  padding: 7px 4px 6px;
+  border-radius: 9px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.16s;
+}
+.mat-btn:hover { background: rgba(255,255,255,0.06); }
+.mat-btn.active { background: rgba(167,139,250,0.14); border-color: rgba(167,139,250,0.45); }
+.mat-btn .mat-icon { font-size: 14px; line-height: 1; }
+.mat-btn span { font-size: 7.5px; color: var(--text-dim); font-family:'DM Mono',monospace; transition: color 0.16s; }
+.mat-btn.active span { color: var(--accent); }
+
+/* ── Toast ── */
+#toast {
+  position:fixed; top:16px; left:50%; pointer-events:none;
+  transform:translateX(-50%) translateY(-24px);
+  background:rgba(20,20,36,0.96); border:1px solid rgba(167,139,250,0.3);
+  color:var(--text); font-size:11px; padding:8px 18px; border-radius:30px;
+  backdrop-filter:blur(12px); transition:transform 0.24s ease, opacity 0.24s ease;
+  opacity:0;
+  z-index:100; white-space:nowrap;
+}
+#toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+
+@media (max-width: 1100px) {
+  #topbar { height:48px; }
+  #workspace {
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:auto minmax(42vh, 1fr) auto;
+  }
+  .sidebar {
+    width:100%;
+    max-height:34vh;
+    border:none;
+    border-top:1px solid var(--panel-border);
+  }
+  #sidebar-left { order:1; }
+  #canvas-wrap { order:2; min-height:42vh; }
+  #sidebar-right { order:3; }
+  #canvas-bottom-controls { bottom:10px; }
+  .bottom-main-btn { min-width:128px; padding:8px 12px; }
+  .bottom-share-btn { min-width:102px; padding:8px 10px; font-size:9px; }
+  .bottom-link-btn { min-width:148px; padding:8px 12px; }
+  #hud-sticky { right:10px; bottom:10px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="topbar-title"><span class="topbar-dot"></span>Liquid Shape Maker</div>
+    <div class="topbar-meta">build by <a href="https://merttoker.com/" target="_blank" rel="noopener noreferrer"><strong>merttoker</strong></a></div>
+  </header>
+  <div id="workspace">
+  <div id="sidebar-left" class="sidebar">
+
+    <!-- SHAPE -->
+    <div class="sec">
+      <div class="sec-label">Shape</div>
+      <div class="shape-grid">
+        <button class="shape-btn active" data-shape="sphere" title="Sphere">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+          <span>Orb</span>
+        </button>
+        <button class="shape-btn" data-shape="torus" title="Torus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="12" rx="9" ry="4"/><ellipse cx="12" cy="12" rx="3.5" ry="1.5"/></svg>
+          <span>Ring</span>
+        </button>
+        <button class="shape-btn" data-shape="trefoil" title="Trefoil Knot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5c2 0 5 3 3 6s-5 2-5 5 3 5 5 3-1-5 2-6 5 1 3 4"/></svg>
+          <span>Knot</span>
+        </button>
+        <button class="shape-btn" data-shape="twist" title="Twisted Torus">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12c0-3 2-5 4-4s3 5 6 5 5-3 6-5"/><path d="M20 12c0 3-2 5-4 4s-3-5-6-5-5 3-6 5"/></svg>
+          <span>Twist</span>
+        </button>
+        <button class="shape-btn" data-shape="chain" title="Torus Knot 2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12c0-3 2-5 4-4s3 4 6 4 5-2 4-4"/><path d="M19 12c0 3-2 5-4 4s-3-4-6-4-5 2-4 4"/></svg>
+          <span>Link</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- THEMES -->
+    <div class="sec">
+      <div class="sec-label">Theme</div>
+      <div class="theme-grid" id="theme-grid"></div>
+      <div class="theme-actions">
+        <button class="btn" id="theme-random-btn" type="button">Random</button>
+      </div>
+    </div>
+
+    <!-- COLORS -->
+    <div class="sec">
+      <div class="sec-label">Color Palette</div>
+      <div class="color-grid" id="color-grid">
+        <!-- filled dynamically by JS -->
+      </div>
+    </div>
+
+    <!-- BASE COLOR -->
+    <div class="sec">
+      <div class="sec-label">Base Layer</div>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+        <div class="color-item" style="flex-shrink:0">
+          <label>Base</label>
+          <input type="color" id="baseColor" value="#ffffff" style="width:44px;">
+        </div>
+        <div style="flex:1;">
+          <div class="slider-header"><span class="slider-label">Color Opacity</span><span class="slider-val" id="colorOpacity-val">1.0</span></div>
+          <input type="range" id="colorOpacity" min="0" max="1" step="0.01" value="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE -->
+    <div class="sec">
+      <div class="sec-label">Scene</div>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+        <div class="color-item" style="flex-shrink:0">
+          <label>Bg</label>
+          <input type="color" id="bgColor" value="#000000" style="width:44px;">
+        </div>
+        <div style="flex:1;">
+          <div class="toggle-row" style="margin-bottom:0;">
+            <span class="toggle-label">Transparent PNG + Grid Preview</span>
+            <label class="toggle"><input type="checkbox" id="pngTransparent"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+  </div><!-- /sidebar-left -->
+
+  <div id="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="canvas-bottom-controls">
+      <button class="icon-btn" id="play-btn" title="Play/Pause">
+        <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 4l15 8-15 8z"/></svg>
+        <svg id="pause-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      </button>
+      <div id="rec-dot"></div>
+      <button class="bottom-main-btn" id="open-export-modal">Export</button>
+      <button class="bottom-share-btn" id="share-link-btn" type="button">Share Link</button>
+      <a class="bottom-link-btn" href="https://buymeacoffee.com/merttoker" target="_blank" rel="noopener noreferrer">☕ Buy me a coffee</a>
+    </div>
+  </div>
+
+  <div id="sidebar-right" class="sidebar">
+
+    <!-- COLOR PARAMS -->
+    <div class="sec">
+      <div class="sec-label">Color Params</div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Gradient Type</span></div>
+        <select class="styled-select" id="gradientType">
+          <option value="linear">Linear</option>
+          <option value="radial">Radial</option>
+          <option value="fluid">Fluid Glass</option>
+          <option value="sharp">Sharp Fold</option>
+        </select>
+      </div>
+      <!-- Sharp Fold controls -->
+      <div id="sharp-controls" style="display:none;">
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#f472b6;">⚡ Sharpness</span><span class="slider-val" id="sharpness-val">8.0</span></div>
+          <input type="range" id="sharpness" min="1" max="30" step="0.5" value="8">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#f472b6;">≈ Smooth Mix</span><span class="slider-val" id="smoothMix-val">0.5</span></div>
+          <input type="range" id="smoothMix" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#f472b6;">⌇ Band Scale</span><span class="slider-val" id="bandScale-val">1.5</span></div>
+          <input type="range" id="bandScale" min="0.3" max="5" step="0.1" value="1.5">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#f472b6;">⟳ Drift Speed</span><span class="slider-val" id="sharpDrift-val">0.3</span></div>
+          <input type="range" id="sharpDrift" min="0" max="2" step="0.05" value="0.3">
+        </div>
+      </div>
+      <!-- Fluid Glass controls — shown only when fluid mode active -->
+      <div id="fluid-controls" style="display:none;">
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#a78bfa;">⬡ Swirl Speed</span><span class="slider-val" id="fluidSwirl-val">1.0</span></div>
+          <input type="range" id="fluidSwirl" min="0.1" max="4" step="0.05" value="1.0">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#a78bfa;">◈ Thin-Film Iris</span><span class="slider-val" id="thinFilm-val">0.0</span></div>
+          <input type="range" id="thinFilm" min="0" max="1" step="0.01" value="0.0">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#a78bfa;">⟁ Chromatic Split</span><span class="slider-val" id="chromaticAb-val">0.0</span></div>
+          <input type="range" id="chromaticAb" min="0" max="1" step="0.01" value="0.0">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-header"><span class="slider-label" style="color:#a78bfa;">≋ Fold Lines</span><span class="slider-val" id="foldLines-val">0.0</span></div>
+          <input type="range" id="foldLines" min="0" max="1" step="0.01" value="0.0">
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Color Warp</span><span class="slider-val" id="colorWarp-val">0.4</span></div>
+        <input type="range" id="colorWarp" min="0" max="1" step="0.01" value="0.4">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Linear Fluidity</span><span class="slider-val" id="linearFluidity-val">0.7</span></div>
+        <input type="range" id="linearFluidity" min="0" max="1" step="0.01" value="0.7">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Netlik (Clarity)</span><span class="slider-val" id="clarity-val">0.0</span></div>
+        <input type="range" id="clarity" min="0" max="1" step="0.01" value="0.0">
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Ultra Sharp (f22)</span>
+        <label class="toggle"><input type="checkbox" id="ultraSharpToggle"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- LIGHT -->
+    <div class="sec">
+      <div class="sec-label">Light</div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Fresnel Edge</span><span class="slider-val" id="fresnel-val">0.5</span></div>
+        <input type="range" id="fresnelIntensity" min="0" max="2" step="0.05" value="0.5">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Fresnel Distribution</span></div>
+        <select class="styled-select" id="fresnelMode">
+          <option value="all" selected>All Around (Uniform)</option>
+          <option value="directional">Directional (One Side)</option>
+        </select>
+      </div>
+      <div class="slider-wrap" id="fresnelDirectionWrap" style="display:none;">
+        <div class="slider-header"><span class="slider-label">Fresnel Direction</span></div>
+        <select class="styled-select" id="fresnelDirection">
+          <option value="right" selected>Right</option>
+          <option value="left">Left</option>
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+          <option value="front">Front</option>
+          <option value="back">Back</option>
+        </select>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Light Brightness</span><span class="slider-val" id="lightBrightness-val">0.3</span></div>
+        <input type="range" id="lightBrightness" min="0" max="2" step="0.1" value="0.3">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Light Scale</span><span class="slider-val" id="lightScale-val">2.0</span></div>
+        <input type="range" id="lightScale" min="1" max="20" step="0.5" value="2.0">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SHAPE & MOTION -->
+    <div class="sec">
+      <div class="sec-label">Shape & Motion</div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Flow Speed</span><span class="slider-val" id="speed-val">0.5</span></div>
+        <input type="range" id="speed" min="0" max="2" step="0.05" value="0.5">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Distortion</span><span class="slider-val" id="distortion-val">0.3</span></div>
+        <input type="range" id="distortion" min="0" max="0.8" step="0.01" value="0.3">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Turbulence</span><span class="slider-val" id="turbulence-val">0.0</span></div>
+        <input type="range" id="turbulence" min="0" max="1" step="0.01" value="0.0">
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Auto rotate</span>
+        <label class="toggle"><input type="checkbox" id="rotate-toggle" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- MATERIAL PRESET -->
+    <div class="sec">
+      <div class="sec-label">Material</div>
+      <div class="mat-grid" id="mat-grid">
+        <button class="mat-btn active" data-mat="glossy">
+          <span class="mat-icon">◉</span><span>Glossy</span>
+        </button>
+        <button class="mat-btn" data-mat="matte">
+          <span class="mat-icon">○</span><span>Matte</span>
+        </button>
+        <button class="mat-btn" data-mat="metallic">
+          <span class="mat-icon">◈</span><span>Metal</span>
+        </button>
+      </div>
+      <!-- Fine-tune sliders -->
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Roughness</span><span class="slider-val" id="roughness-val">0.0</span></div>
+        <input type="range" id="roughness" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Metallic</span><span class="slider-val" id="metallic-val">0.0</span></div>
+        <input type="range" id="metallic" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Specular</span><span class="slider-val" id="specPow-val">64</span></div>
+        <input type="range" id="specPow" min="2" max="256" step="1" value="64">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Fuzz / Velvet</span><span class="slider-val" id="fuzzy-val">0.0</span></div>
+        <input type="range" id="fuzzyIntensity" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div id="metallic-layer-wrap" style="display:none;">
+        <div class="toggle-row" style="margin-top:4px;">
+          <span class="toggle-label">✦ Metallic Layer</span>
+          <label class="toggle"><input type="checkbox" id="metallic-toggle"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+        </div>
+        <div id="metallic-controls" style="display:none; margin-top:8px;">
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label" style="color:#fbbf24;">Envmap Strength</span><span class="slider-val" id="envStrength-val">0.6</span></div>
+            <input type="range" id="envStrength" min="0" max="1" step="0.01" value="0.6">
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label" style="color:#fbbf24;">Anisotropy</span><span class="slider-val" id="aniso-val">0.5</span></div>
+            <input type="range" id="aniso" min="0" max="1" step="0.01" value="0.5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- TEXTURE EFFECTS -->
+    <div class="sec">
+      <div class="sec-label">Effects</div>
+
+      <!-- Filament -->
+      <div class="fx-group" id="fx-filament">
+        <div class="fx-header">
+          <span class="fx-title"><span class="fx-title-dot"></span>Filament</span>
+          <span class="fx-val-badge" id="fx-filament-badge">0.0</span>
+          <span class="fx-chevron">▾</span>
+        </div>
+        <div class="fx-body">
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label">Intensity</span><span class="slider-val" id="filament-val">0.0</span></div>
+            <input type="range" id="filamentIntensity" min="0" max="1" step="0.01" value="0">
+          </div>
+          <div class="slider-wrap" style="margin-bottom:2px;">
+            <div class="slider-header"><span class="slider-label">Scale</span><span class="slider-val" id="filamentScale-val">4.0</span></div>
+            <input type="range" id="filamentScale" min="1" max="10" step="0.1" value="4">
+          </div>
+        </div>
+      </div>
+
+      <!-- Topo -->
+      <div class="fx-group" id="fx-topo">
+        <div class="fx-header">
+          <span class="fx-title"><span class="fx-title-dot"></span>Contour</span>
+          <span class="fx-val-badge" id="fx-topo-badge">0.0</span>
+          <span class="fx-chevron">▾</span>
+        </div>
+        <div class="fx-body">
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label">Intensity</span><span class="slider-val" id="topo-val">0.0</span></div>
+            <input type="range" id="topoIntensity" min="0" max="1" step="0.01" value="0">
+          </div>
+          <div class="slider-wrap" style="margin-bottom:2px;">
+            <div class="slider-header"><span class="slider-label">Frequency</span><span class="slider-val" id="topoFreq-val">10.0</span></div>
+            <input type="range" id="topoFreq" min="1" max="20" step="0.5" value="10">
+          </div>
+        </div>
+      </div>
+
+      <!-- Ripple -->
+      <div class="fx-group" id="fx-ripple">
+        <div class="fx-header">
+          <span class="fx-title"><span class="fx-title-dot"></span>Ripple</span>
+          <span class="fx-val-badge" id="fx-ripple-badge">0.0</span>
+          <span class="fx-chevron">▾</span>
+        </div>
+        <div class="fx-body">
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label">Intensity</span><span class="slider-val" id="ripple-val">0.0</span></div>
+            <input type="range" id="rippleIntensity" min="0" max="1" step="0.01" value="0">
+          </div>
+          <div class="slider-wrap" style="margin-bottom:2px;">
+            <div class="slider-header"><span class="slider-label">Frequency</span><span class="slider-val" id="rippleFreq-val">10.0</span></div>
+            <input type="range" id="rippleFreq" min="1" max="30" step="0.5" value="10">
+          </div>
+        </div>
+      </div>
+
+      <!-- Noise -->
+      <div class="fx-group" id="fx-noise">
+        <div class="fx-header">
+          <span class="fx-title"><span class="fx-title-dot"></span>Noise</span>
+          <span class="fx-val-badge" id="fx-noise-badge">0.0</span>
+          <span class="fx-chevron">▾</span>
+        </div>
+        <div class="fx-body">
+          <div class="slider-wrap">
+            <div class="slider-header"><span class="slider-label">Intensity</span><span class="slider-val" id="noise-val">0.0</span></div>
+            <input type="range" id="noiseIntensity" min="0" max="1" step="0.01" value="0">
+          </div>
+          <div class="slider-wrap" style="margin-bottom:2px;">
+            <div class="slider-header"><span class="slider-label">Scale</span><span class="slider-val" id="noiseScale-val">15.0</span></div>
+            <input type="range" id="noiseScale" min="1" max="50" step="1" value="15">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PERFORMANCE -->
+    <div class="sec">
+      <div class="sec-label">Performance</div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Geometry Quality</span></div>
+        <select class="styled-select" id="geoQuality">
+          <option value="legacy" selected>Legacy (Exact)</option>
+          <option value="balanced">Balanced</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+    </div>
+  </div><!-- /sidebar-right -->
+  </div><!-- /workspace -->
+</div><!-- /app -->
+
+<div id="export-modal" aria-hidden="true">
+  <div class="modal-backdrop" data-close-export></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+    <div class="modal-head">
+      <div class="modal-title" id="export-modal-title">Export</div>
+      <button class="modal-close" id="close-export-modal" aria-label="Close export modal">×</button>
+    </div>
+    <div class="export-tabs">
+      <button class="export-tab active" data-export-tab="video"><span class="export-tab-ico">🎬</span><span class="export-tab-label">Video</span></button>
+      <button class="export-tab" data-export-tab="image"><span class="export-tab-ico">🖼️</span><span class="export-tab-label">Image</span></button>
+      <button class="export-tab" data-export-tab="code"><span class="export-tab-ico">💻</span><span class="export-tab-label">Code</span></button>
+    </div>
+
+    <div class="export-pane active" data-export-pane="video">
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video Format</span></div>
+        <div class="chip-group" id="video-format-chips">
+          <button class="chip active" data-video-format="webm">WebM</button>
+          <button class="chip" data-video-format="mp4">MP4</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video Resolution</span></div>
+        <div class="chip-group" id="video-res-chips">
+          <button class="chip active" data-video-res="source">Source</button>
+          <button class="chip" data-video-res="2k">2K</button>
+          <button class="chip" data-video-res="4k">4K</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video Ratio</span></div>
+        <div class="chip-group" id="video-aspect-chips">
+          <button class="chip active" data-video-aspect="source">Source</button>
+          <button class="chip" data-video-aspect="square">Square (1:1)</button>
+          <button class="chip" data-video-aspect="landscape">Landscape (16:9)</button>
+          <button class="chip" data-video-aspect="portrait">Portrait (9:16)</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video Duration</span><span class="slider-val" id="videoDuration-val">8.0s</span></div>
+        <input type="range" id="videoDuration" min="2" max="20" step="0.5" value="8">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video FPS</span><span class="slider-val" id="videoFps-val">60</span></div>
+        <input type="range" id="videoFps" min="24" max="120" step="1" value="60">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Video Mbps</span><span class="slider-val" id="videoBitrate-val">12.0</span></div>
+        <input type="range" id="videoBitrate" min="2" max="40" step="0.5" value="12">
+      </div>
+      <div class="export-action">
+        <button class="btn primary" id="export-video">Record & Download Video</button>
+      </div>
+    </div>
+
+    <div class="export-pane" data-export-pane="image">
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Format</span></div>
+        <div class="chip-group" id="image-format-chips">
+          <button class="chip active" data-image-format="png">PNG</button>
+          <button class="chip" data-image-format="jpeg">JPEG</button>
+          <button class="chip" data-image-format="webp">WebP</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Image Scale</span></div>
+        <select class="styled-select" id="exportScale">
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+        </select>
+        <div id="exportScalePixels">Output: —</div>
+      </div>
+      <div class="export-action">
+        <button class="btn primary" id="export-image-action">Export Image</button>
+      </div>
+    </div>
+
+    <div class="export-pane" data-export-pane="code">
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Code Type</span></div>
+        <div class="chip-group" id="code-format-chips">
+          <button class="chip active" data-code-format="vanilla">Vanilla</button>
+          <button class="chip" data-code-format="react">React</button>
+          <button class="chip" data-code-format="css">CSS</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Loop Cycle (s)</span><span class="slider-val" id="codeLoopSeconds-val">0.0</span></div>
+        <input type="range" id="codeLoopSeconds" min="0" max="20" step="0.5" value="0">
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-header"><span class="slider-label">Time Speed</span><span class="slider-val" id="codeTimeSpeed-val">1.0x</span></div>
+        <input type="range" id="codeTimeSpeed" min="0.2" max="3" step="0.1" value="1">
+      </div>
+      <div class="code-tools">
+        <button class="btn primary" id="copy-code">Copy Code</button>
+      </div>
+      <div class="code-preview-title">Live Canvas Preview</div>
+      <img id="code-preview-image" alt="Current canvas preview">
+      <div id="code-loop-note">Animation: running. Loop: infinite.</div>
+      <div id="code-behavior-note">Preview düşük FPS snapshot gösterir. Üretilen snippet gerçek kullanımda `requestAnimationFrame/useFrame` ile akıcı çalışır; Loop Cycle > 0 ise verilen saniyede tekrar eder.</div>
+      <pre id="code-output"></pre>
+    </div>
+  </div>
+</div>
+
+<div id="hud-sticky">
+  <div class="status-row"><span>fps</span><span id="fps-val">—</span></div>
+  <div class="status-row"><span>time</span><span id="time-val">0.0s</span></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+window.va = window.va || function(){ (window.vaq = window.vaq || []).push(arguments); };
+window.si = window.si || function(){ (window.siq = window.siq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════
+   LIQUID SHAPE MAKER
+   Base: liquid-shape-generator.html shader system
+   UI: dark glassmorphism sidebar + preset themes
+   ═══════════════════════════════════════════════════════ */
+
+// ── GLSL helpers (from original file) ───────────────────
+const noiseGLSL = `
+  vec3 mod289v3(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec4 mod289v4(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }
+  vec4 permute4(vec4 x){ return mod289v4(((x*34.0)+1.0)*x); }
+  vec4 taylorInvSqrt4(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
+
+  float snoise(vec3 v){
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    vec3 i  = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy;
+    vec3 x3 = x0 - D.yyy;
+    i = mod289v3(i);
+    vec4 p = permute4(permute4(permute4(
+      i.z+vec4(0.0,i1.z,i2.z,1.0))+
+      i.y+vec4(0.0,i1.y,i2.y,1.0))+
+      i.x+vec4(0.0,i1.x,i2.x,1.0));
+    float n_ = 0.142857142857;
+    vec3  ns = n_*D.wyz - D.xzx;
+    vec4 j = p - 49.0*floor(p*ns.z*ns.z);
+    vec4 x_ = floor(j*ns.z);
+    vec4 y_ = floor(j - 7.0*x_);
+    vec4 x  = x_*ns.x + ns.yyyy;
+    vec4 y  = y_*ns.x + ns.yyyy;
+    vec4 h  = 1.0 - abs(x) - abs(y);
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    vec4 s0 = floor(b0)*2.0+1.0;
+    vec4 s1 = floor(b1)*2.0+1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    vec4 norm = taylorInvSqrt4(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+    p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+    vec4 m = max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
+    m=m*m;
+    return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+  }
+
+  vec2 hash22(vec2 p){
+    p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+    return fract(sin(p)*43758.5453);
+  }
+
+  float voronoi(vec3 p){
+    vec2 n = floor(p.xy), f = fract(p.xy);
+    float md = 1.0;
+    for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++){
+      vec2 nb = vec2(float(i),float(j));
+      vec2 pt = hash22(n+nb);
+      pt = 0.5 + 0.5*sin(p.z + 6.2831*pt);
+      vec2 d = nb + pt - f;
+      md = min(md, length(d));
+    }
+    return md;
+  }
+`;
+
+// ── Vertex Shader ───────────────────────────────────────
+const vertexShader = `
+  uniform float uTime;
+  uniform float uDistortion;
+  uniform float uTurbulence;
+  uniform float uDispAmp;
+  uniform float uFilamentIntensity;
+  uniform float uFilamentScale;
+  uniform float uVoronoiIntensity;
+  uniform float uVoronoiScale;
+  uniform float uTopoIntensity;
+  uniform float uTopoFreq;
+  uniform float uRippleIntensity;
+  uniform float uRippleFreq;
+  uniform float uStyle;
+
+  varying vec3 vNormal;
+  varying vec3 vNormalView;
+  varying vec3 vPosition;
+  varying vec3 vViewDir;
+
+  ${noiseGLSL}
+
+  float getDisplacement(vec3 pos){
+    // uStyle < 0.5 → Liquid/Smooth: low freq, big gentle waves
+    // uStyle > 0.5 → Organic/Crystal: high freq, sharp bumps
+    float freq1 = (uStyle > 0.5) ? 1.5 : 0.8;
+    float d1 = snoise(pos * freq1 + uTime * 0.3) * uDistortion;
+
+    // Turbulence layer (always present)
+    float d2 = snoise(pos * 4.0 + uTime * 1.5) * uTurbulence * 0.5;
+
+    // Filament / web
+    float ridge = abs(snoise(pos*uFilamentScale + uTime*0.2));
+    float d3 = (1.0 - pow(ridge, 0.5)) * uFilamentIntensity * 0.5;
+
+    // Voronoi / cell
+    float d4 = (1.0 - voronoi(pos*uVoronoiScale + uTime*0.1)) * uVoronoiIntensity * 0.2;
+
+    // Topographic bands
+    float topoN = snoise(pos + uTime*0.1);
+    float bands = smoothstep(0.8, 1.0, sin(topoN*uTopoFreq));
+    float d5 = bands * uTopoIntensity * 0.3;
+
+    // Ripple
+    float rip = sin(length(pos.xz)*uRippleFreq + uTime*2.0)
+              + sin(length(pos.xy)*uRippleFreq*0.8 - uTime*1.5);
+    float d6 = rip * uRippleIntensity * 0.1;
+
+    return d1 + d2 - d3 + d4 + d5 + d6;
+  }
+
+  void main(){
+    vPosition = position;
+    float disp = getDisplacement(position) * uDispAmp;
+    vec3 newPos = position + normal * disp;
+
+    // Liquid: recalculate normals from displacement gradient → smooth shading
+    // Organic/Crystal: keep original face normals → sharp faceted look
+    vec3 localNormal;
+    if(uStyle < 0.5){
+      float eps = 0.1;
+      float dx = getDisplacement(position+vec3(eps,0,0)) - getDisplacement(position-vec3(eps,0,0));
+      float dy = getDisplacement(position+vec3(0,eps,0)) - getDisplacement(position-vec3(0,eps,0));
+      float dz = getDisplacement(position+vec3(0,0,eps)) - getDisplacement(position-vec3(0,0,eps));
+      localNormal = normalize(normal - vec3(dx,dy,dz)/(2.0*eps));
+    } else {
+      localNormal = normal;
+    }
+
+    vNormal = localNormal;
+    vNormalView = normalize(normalMatrix * localNormal);
+
+    vec4 mvPos = modelViewMatrix * vec4(newPos, 1.0);
+    vViewDir = normalize(-mvPos.xyz);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+// ── Fragment Shader ─────────────────────────────────────
+const fragmentShader = `
+  uniform vec3  uBaseColor;
+  uniform float uColorOpacity;
+  uniform float uTime;
+  uniform float uLightBrightness, uLightScale;
+  uniform float uColorWarp, uGradientType;
+  uniform float uLinearFluidity;
+  uniform float uClarity;
+  uniform float uUltraSharp;
+  uniform float uFresnelIntensity;
+  uniform float uFresnelMode;
+  uniform vec3  uFresnelDir;
+  uniform float uLightMode;
+  uniform vec3  uLightDir;
+  uniform float uNoiseIntensity, uNoiseScale;
+  // Fluid Glass
+  uniform float uFluidSwirl;
+  uniform float uThinFilm;
+  uniform float uChromaticAb;
+  uniform float uFoldLines;
+  // Sharp Fold
+  uniform float uSharpness;
+  uniform float uSmoothMix;
+  uniform float uBandScale;
+  uniform float uSharpDrift;
+  // Material system
+  uniform float uRoughness;
+  uniform float uMetallic;
+  uniform float uSpecPow;
+  uniform float uFuzzyIntensity;
+  uniform float uEnvStrength;
+  uniform float uAniso;
+  uniform float uMetallicLayer; // 0=off, 1=on
+
+  varying vec3 vNormal;
+  varying vec3 vNormalView;
+  varying vec3 vPosition;
+  varying vec3 vViewDir;
+
+  ${noiseGLSL}
+
+  // Supports up to 12 colors, uColorCount tells how many are active
+  uniform int uColorCount;
+  uniform vec3 uColors[12];
+
+  vec3 getPalette(float t){
+    t = clamp(t, 0.0, 1.0);
+    int n = uColorCount;
+    if(n <= 1) return uColors[0];
+    float seg = 1.0 / float(n - 1);
+    for(int i = 0; i < 11; i++){
+      if(i >= n - 1) break;
+      float lo = float(i) * seg;
+      float hi = float(i + 1) * seg;
+      if(t >= lo && t <= hi)
+        return mix(uColors[i], uColors[i + 1], (t - lo) / seg);
+    }
+    return uColors[n - 1];
+  }
+
+  // ── Fluid Glass color coordinate ─────────────────────
+  float fluidColorT(vec3 p, float time, float swirl){
+    float n1 = snoise(p * 0.9  + time * 0.12 * swirl);
+    float n2 = snoise(p * 1.8  - time * 0.07 * swirl + vec3(1.7, 0.4, 2.1));
+    float n3 = snoise(p * 0.45 + time * 0.04 * swirl + vec3(3.3, 1.1, 0.8));
+    return (n1*0.50 + n2*0.32 + n3*0.18) * 0.5 + 0.5;
+  }
+
+  float fbm3(vec3 p){
+    float f = 0.0;
+    float a = 0.5;
+    f += a * snoise(p); p *= 2.02; a *= 0.5;
+    f += a * snoise(p); p *= 2.03; a *= 0.5;
+    f += a * snoise(p);
+    return f;
+  }
+
+  // ── Thin-film iridescence ─────────────────────────────
+  vec3 thinFilmTint(float NdotV, float time, float intensity){
+    float phase = NdotV * 3.14159 * 3.0 + time * 0.25;
+    float r = sin(phase)          * 0.5 + 0.5;
+    float g = sin(phase + 2.094)  * 0.5 + 0.5;
+    float b = sin(phase + 4.189)  * 0.5 + 0.5;
+    return vec3(r, g, b) * intensity;
+  }
+
+  // ── Fake environment map (procedural cube-like reflection) ──
+  // Simulates a gradient sky env — warm top, cool sides, dark bottom.
+  vec3 fakeEnvMap(vec3 R, float time){
+    // Slowly rotating env
+    float a = time * 0.04;
+    float ca = cos(a), sa = sin(a);
+    vec3 Rr = vec3(R.x*ca - R.z*sa, R.y, R.x*sa + R.z*ca);
+    // Gradient sky
+    float up = Rr.y * 0.5 + 0.5;
+    vec3 sky = mix(vec3(0.05, 0.04, 0.10), vec3(0.90, 0.92, 1.00), up);
+    // Horizon highlight band
+    float horiz = 1.0 - abs(Rr.y);
+    horiz = pow(horiz, 4.0);
+    sky = mix(sky, vec3(1.0, 0.97, 0.90), horiz * 0.5);
+    // Anisotropic streak (brushed metal look)
+    float streak = abs(sin(Rr.x * 8.0 + time * 0.1)) * 0.15;
+    sky += streak;
+    return clamp(sky, 0.0, 1.0);
+  }
+
+  void main(){
+    vec3 N = normalize(vNormal);
+    vec3 V = normalize(vViewDir);
+    float NdotV = max(0.0, dot(N, V));
+
+    // ── Color coordinate ─────────────────────────────────
+    float colorT;
+    float warpN = snoise(vPosition*2.0 + uTime*0.2);
+
+    if(uGradientType < 0.5){
+      // ── Linear (fluidized) ───────────────────────────────
+      float baseLinear = vPosition.y * 0.5 + 0.5;
+      float fluidity = clamp(uLinearFluidity, 0.0, 1.0);
+      float flowA = fbm3(vPosition * 1.15 + vec3(uTime * 0.08, -uTime * 0.06, uTime * 0.05));
+      float flowB = snoise(vPosition * 2.6 + vec3(0.0, uTime * 0.14, uTime * 0.11));
+      float sideX = vPosition.x * 0.5 + 0.5;
+      float sideZ = vPosition.z * 0.5 + 0.5;
+      float sideBlend = mix(baseLinear, sideX, 0.14 * fluidity + 0.12 * fluidity * (flowA * 0.5 + 0.5));
+      sideBlend = mix(sideBlend, sideZ, 0.10 * fluidity + 0.10 * fluidity * (flowB * 0.5 + 0.5));
+      float fluidWarp = (flowA * 0.23 + flowB * 0.14) * fluidity;
+      float colorWarpMix = warpN * uColorWarp * mix(0.55, 1.05, fluidity);
+      colorT = clamp(mix(baseLinear, sideBlend, fluidity) + fluidWarp + colorWarpMix, 0.0, 1.0);
+
+    } else if(uGradientType < 1.5){
+      // ── Radial ───────────────────────────────────────────
+      float radial = clamp(length(vPosition)/1.5, 0.0, 1.0);
+      colorT = clamp(radial + warpN*uColorWarp, 0.0, 1.0);
+
+    } else if(uGradientType < 2.5){
+      // ── Fluid Glass (Linear Fluidity: 0=linear, 1=fluid) ─
+      float fluidity = clamp(uLinearFluidity, 0.0, 1.0);
+      float baseLinear = vPosition.y * 0.5 + 0.5;
+      float axialTilt = (vPosition.x + vPosition.z) * 0.08;
+      float linearNoise = fbm3(vPosition * 1.05 + vec3(uTime * 0.03, -uTime * 0.02, uTime * 0.02)) * 0.05;
+      float linearField = clamp(baseLinear + axialTilt + linearNoise, 0.0, 1.0);
+
+      float swirl = mix(0.35, max(uFluidSwirl, 0.5), fluidity);
+      float fluid = fluidColorT(vPosition, uTime, swirl);
+      float mixAmt = pow(fluidity, 1.25);
+      float warp2 = snoise(vPosition * mix(2.0, 3.8, fluidity) + uTime * mix(0.04, 0.20, fluidity))
+                  * uColorWarp * mix(0.08, 0.52, fluidity);
+      colorT = clamp(mix(linearField, fluid, mixAmt) + warp2, 0.0, 1.0);
+
+    } else {
+      // ── Sharp Fold ───────────────────────────────────────
+      // Base: slow drifting noise pools (like fluid), but quantized into bands
+      float drift = uTime * uSharpDrift;
+      float n1 = snoise(vPosition * uBandScale       + drift * vec3(0.7, 0.4, 0.5));
+      float n2 = snoise(vPosition * uBandScale * 2.1 - drift * vec3(0.3, 0.8, 0.2) + vec3(2.1, 1.4, 0.8));
+      float n3 = snoise(vPosition * uBandScale * 0.5 + drift * vec3(0.2, 0.3, 0.6) + vec3(5.2, 3.1, 1.7));
+
+      // Smooth base (weighted blend → natural colour pools)
+      float smoothT = (n1 * 0.55 + n2 * 0.28 + n3 * 0.17) * 0.5 + 0.5;
+
+      // Sharp version: posterize smoothT into hard bands
+      // smoothstep-based quantization — keeps anti-aliased edges at transitions
+      float bands = float(uColorCount - 1);
+      float q = floor(smoothT * bands) / bands;           // stepped
+      float qNext = (floor(smoothT * bands) + 1.0) / bands;
+      // fraction within the current band [0,1]
+      float frac = fract(smoothT * bands);
+      // Edge sharpness: smoothstep width controlled by uSharpness
+      // high uSharpness → very narrow transition zone → knife-edge
+      float edgeWidth = 1.0 / max(uSharpness, 0.5);
+      float blend = smoothstep(0.5 - edgeWidth, 0.5 + edgeWidth, frac);
+      float sharpT = mix(q, qNext, blend);
+
+      // Mix sharp and smooth — uSmoothMix=0 → all sharp, 1 → all smooth
+      colorT = mix(sharpT, smoothT, uSmoothMix);
+
+      // Add colour warp on top
+      colorT = clamp(colorT + warpN * uColorWarp * 0.3, 0.0, 1.0);
+    }
+
+    // ── Base palette color (with optional chromatic ab) ──
+    vec3 base;
+    if(uGradientType > 1.5 && uChromaticAb > 0.001){
+      float spread = uChromaticAb * 0.08;
+      base = vec3(
+        getPalette(clamp(colorT - spread, 0.0, 1.0)).r,
+        getPalette(colorT).g,
+        getPalette(clamp(colorT + spread, 0.0, 1.0)).b
+      );
+    } else {
+      base = getPalette(colorT);
+    }
+
+    // ── Thin-film iridescence ─────────────────────────────
+    if(uThinFilm > 0.001){
+      vec3 film = thinFilmTint(NdotV, uTime, uThinFilm);
+      base = clamp(mix(base, base * 0.6 + film * 0.4, uThinFilm), 0.0, 1.0);
+    }
+
+    // ── Fold / contour lines (fixed — proper isoline) ────
+    // Compute gradient magnitude of noise → lines at level-set crossings
+    if(uFoldLines > 0.001){
+      // Two noise fields for cross-hatch soap-film look
+      vec3 ps = vPosition * 3.0 + uTime * 0.08;
+      vec3 ps2 = vPosition * 1.7 - uTime * 0.05 + vec3(4.4, 1.9, 3.1);
+
+      float eps = 0.04;
+      // Finite-difference gradient of noise field 1
+      float nx0 = snoise(ps - vec3(eps,0,0)), nx1 = snoise(ps + vec3(eps,0,0));
+      float ny0 = snoise(ps - vec3(0,eps,0)), ny1 = snoise(ps + vec3(0,eps,0));
+      float nz0 = snoise(ps - vec3(0,0,eps)), nz1 = snoise(ps + vec3(0,0,eps));
+      float gradMag = length(vec3(nx1-nx0, ny1-ny0, nz1-nz0)) / (2.0*eps);
+      float fv = snoise(ps);
+      // Lines at integer crossings of fv — width inversely proportional to gradient
+      float lineWidth = mix(0.018, 0.055, 1.0 - clamp(gradMag * 0.5, 0.0, 1.0));
+      float line1 = 1.0 - smoothstep(0.0, lineWidth, abs(fract(fv * 2.0 + 0.5) - 0.5) * 2.0);
+
+      // Noise field 2 — lower freq, wider lines
+      float fv2 = snoise(ps2);
+      float line2 = 1.0 - smoothstep(0.0, 0.04, abs(fract(fv2 * 1.3 + 0.5) - 0.5) * 2.0);
+
+      float foldMask = clamp((line1 * 0.65 + line2 * 0.35) * uFoldLines * 1.4, 0.0, 1.0);
+      vec3 foldCol = mix(vec3(0.78, 0.86, 1.0), vec3(1.0), 0.55); // silver-white/blue
+      base = mix(base, foldCol, foldMask);
+    }
+
+    // ── Animated light blobs ──────────────────────────────
+    float t = uTime*0.5;
+    float l1 = smoothstep(0.3, 0.7, snoise(vPosition*uLightScale + vec3(t, 0.0, t*0.5)));
+    float l2 = smoothstep(0.4, 0.8, snoise(vPosition*(uLightScale*1.5) - vec3(0.0, t, -t)));
+    float lightMask = clamp((l1*0.6 + l2*0.4) * uLightBrightness, 0.0, 1.0);
+    base = mix(base, vec3(1.0), lightMask * 0.55);
+
+    // ── Visual noise ──────────────────────────────────────
+    if(uNoiseIntensity > 0.001){
+      float noiseV = snoise(vPosition*uNoiseScale + uTime*0.05)*0.5 + 1.0;
+      base = mix(base, base*noiseV, uNoiseIntensity);
+    }
+
+    // ── Clarity boost (micro highlights + local contrast) ─
+    // Default uClarity=0 keeps legacy look unchanged.
+    if(uClarity > 0.001){
+      float microA = abs(snoise(vPosition * 18.0 + vec3(uTime * 0.03)));
+      float microB = abs(snoise(vPosition * 31.0 - vec3(uTime * 0.02)));
+      float micro = smoothstep(0.65, 0.92, microA * 0.62 + microB * 0.38);
+      base = mix(base, vec3(1.0), micro * uClarity * 0.22);
+      base = clamp((base - 0.5) * (1.0 + uClarity * 0.55) + 0.5, 0.0, 1.0);
+    }
+
+    // ── MATERIAL SYSTEM ───────────────────────────────────
+    vec3 L  = normalize(vec3(1.5, 2.0, 1.2));
+    vec3 L2 = normalize(vec3(-1.2, -0.5, 1.0));  // fill light
+    if(uLightMode > 0.5){
+      L  = normalize(uLightDir);
+      L2 = normalize(-uLightDir);
+    }
+    vec3 H  = normalize(L + V);
+    vec3 H2 = normalize(L2 + V);
+    float NdotL  = max(0.0, dot(N, L));
+    float NdotL2 = max(0.0, dot(N, L2));
+
+    // Roughness → blurs specular (fake: lower exponent)
+    float roughSpec = mix(uSpecPow, 2.0, uRoughness);
+
+    // Diffuse: Lambertian + fill light, reduced by roughness
+    float fillWeight = (uLightMode > 0.5) ? 0.06 : 0.15;
+    float diffuse = NdotL * 0.8 + NdotL2 * fillWeight + 0.18; // soft ambient
+    // Matte: increase diffuse, kill specular
+    diffuse = mix(diffuse, 1.0, uRoughness * 0.4);
+
+    // Specular
+    float specVal = pow(max(0.0, dot(N, H)), roughSpec);
+    float specVal2 = pow(max(0.0, dot(N, H2)), roughSpec * 1.1);
+    // Anisotropic highlight for metallic — elongated along U tangent
+    vec3 T = normalize(cross(N, vec3(0.0, 1.0, 0.01))); // tangent
+    float TdotH = dot(T, H);
+    float TdotH2 = dot(T, H2);
+    float anisoSpec = pow(max(0.0, 1.0 - abs(TdotH)), mix(2.0, 20.0, uAniso));
+    float anisoSpec2 = pow(max(0.0, 1.0 - abs(TdotH2)), mix(2.0, 20.0, uAniso));
+    specVal = mix(specVal, anisoSpec * specVal, uMetallic);
+    specVal2 = mix(specVal2, anisoSpec2 * specVal2, uMetallic);
+
+    // Fuzzy / velvet: backscattering at grazing angles
+    float fuzzy = pow(1.0 - NdotV, 2.5) * uFuzzyIntensity;
+    vec3 fuzzyColor = mix(base * 1.3, vec3(1.0), 0.3);
+    base = mix(base, fuzzyColor, clamp(fuzzy, 0.0, 0.8));
+
+    // Apply diffuse shading (only for non-fluid / non-emissive materials)
+    // Soft: blend diffuse so pure iridescent colors aren't killed
+    float shadingBlend = mix(0.25, 0.85, uRoughness + uMetallic * 0.5);
+    base = mix(base, base * diffuse, shadingBlend);
+
+    // Specular highlight
+    float specStrength = mix(0.7, 0.3, uRoughness); // rougher = dimmer spec
+    float secondarySpecWeight = (uLightMode > 0.5) ? 0.08 : 0.35;
+    float specTotal = (specVal + specVal2 * secondarySpecWeight) * specStrength;
+    base = mix(base, vec3(1.0), clamp(specTotal, 0.0, 0.85));
+
+    // ── Metallic env reflection layer ─────────────────────
+    if(uMetallicLayer > 0.5){
+      vec3 R = reflect(-V, N);
+      vec3 envCol = fakeEnvMap(R, uTime);
+      // Schlick-like reflection: stronger at grazing angles
+      float schlick = uMetallic + (1.0 - uMetallic) * pow(1.0 - NdotV, 5.0);
+      float envMix = clamp(schlick * uEnvStrength, 0.0, 0.75);
+      // Tint env with base color for metallic look
+      vec3 tintedEnv = mix(envCol, base * envCol * 1.5, uMetallic * 0.7);
+      base = mix(base, tintedEnv, envMix);
+    }
+
+    // ── Fresnel rim ───────────────────────────────────────
+    vec3 Nf = normalize(vNormalView);
+    float NdotVf = max(0.0, dot(Nf, V));
+    float fresnelPow = (uGradientType > 1.5) ? 2.2 : mix(3.0, 1.8, uMetallic);
+    float fresnel = pow(1.0 - NdotVf, fresnelPow);
+    if(uFresnelMode > 0.5){
+      float hemi = dot(Nf, normalize(uFresnelDir)) * 0.5 + 0.5;
+      float directionalMask = smoothstep(0.25, 0.95, hemi);
+      fresnel *= directionalMask;
+    }
+    vec3 fresnelCol = (uGradientType > 1.5)
+      ? mix(vec3(0.80, 0.88, 1.0), vec3(1.0), 0.4)
+      : mix(vec3(1.0), base * 1.4, uMetallic * 0.5);
+    base = mix(base, fresnelCol, clamp(fresnel * uFresnelIntensity, 0.0, 0.92));
+
+    // ── Ultra Sharp mode (visible but palette-preserving) ─
+    if(uUltraSharp > 0.5){
+      vec3 fw = fwidth(base);
+      float edge = clamp((fw.r + fw.g + fw.b) * 22.0, 0.0, 1.0);
+      vec3 contrasted = clamp((base - 0.5) * (1.55 + edge * 0.55) + 0.5, 0.0, 1.0);
+      float lum = dot(contrasted, vec3(0.2126, 0.7152, 0.0722));
+      vec3 saturated = mix(vec3(lum), contrasted, 1.10);
+      base = mix(base, clamp(saturated, 0.0, 1.0), 0.90);
+    }
+
+    base = clamp(base, 0.0, 1.0);
+
+    gl_FragColor = vec4(base, uColorOpacity);
+  }
+`;
+
+// ── Theme presets — 15 themes ─────────────────────────────
+const THEMES = [
+  // ── İridescent referans (ilk verilen görseldeki renkler) — Fluid Glass için optimize
+  { id:'iridescent', name:'Pearl',    swatch:'conic-gradient(#38bdf8,#a78bfa,#f472b6,#ffd6e8,#c4f0ff,#7ee8fa,#38bdf8)',
+    colors:['#38bdf8','#a78bfa','#f472b6','#e879a0','#ffd6e8','#c4f0ff','#7ee8fa'] },
+
+  // ── Mevcut temalar
+  { id:'aurora',  name:'Aurora',  swatch:'conic-gradient(#43e97b,#38f9d7,#5ee7df,#b490ca,#43e97b)',
+    colors:['#43e97b','#38f9d7','#5ee7df','#b490ca'] },
+  { id:'sunset',  name:'Sunset',  swatch:'conic-gradient(#fa709a,#fee140,#f5af19,#fa709a)',
+    colors:['#fa709a','#fee140','#f5af19','#ffffff'] },
+  { id:'ocean',   name:'Ocean',   swatch:'conic-gradient(#0f3460,#00d2ff,#c9ffbf,#0f3460)',
+    colors:['#0f3460','#16213e','#00d2ff','#c9ffbf'] },
+  { id:'galaxy',  name:'Galaxy',  swatch:'conic-gradient(#7928ca,#ff0080,#4f46e5,#7928ca)',
+    colors:['#7928ca','#ff0080','#4f46e5','#e0c3fc'] },
+
+  // ── Yeni trendler
+  { id:'rosegold',   name:'Rose Gold', swatch:'conic-gradient(#f4a4a4,#f9d5c0,#e8c4c4,#fce4ec,#f4a4a4)',
+    colors:['#e8a0a0','#f4cdb5','#dba8b8','#fce4ec'] },
+  { id:'cyberpunk',  name:'Cyber',     swatch:'conic-gradient(#ff007a,#00ffb3,#0088ff,#ff007a)',
+    colors:['#1b1b2a','#ff007a','#00ffb3','#0088ff'] },
+  { id:'lava',       name:'Lava',      swatch:'conic-gradient(#8b0000,#ff4500,#ff8c00,#8b0000)',
+    colors:['#1a0500','#8b0000','#ff4500','#ffcc00'] },
+  { id:'cotton',     name:'Candy',     swatch:'conic-gradient(#ffb3d9,#ffc0e0,#d4a5e8,#b5d5f5,#ffb3d9)',
+    colors:['#ffc0e0','#ffb3d9','#d4a5e8','#b5d5f5'] },
+  { id:'forest',     name:'Forest',    swatch:'conic-gradient(#2d5016,#468b47,#a8d5a8,#2d5016)',
+    colors:['#1a3009','#2d5016','#468b47','#a8d5a8'] },
+  { id:'arctic',     name:'Arctic',    swatch:'conic-gradient(#e8f4f8,#7ec8d9,#4da6c0,#e8f4f8)',
+    colors:['#ffffff','#e8f4f8','#7ec8d9','#1a6a8a'] },
+  { id:'bronze',     name:'Bronze',    swatch:'conic-gradient(#3d2817,#cd7f32,#daa520,#3d2817)',
+    colors:['#1a0f05','#8b4513','#cd7f32','#ffd700'] },
+];
+
+// ── Three.js setup ───────────────────────────────────────
+const canvas   = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, preserveDrawingBuffer:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 1);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+camera.position.set(0, 0, 4.5);
+
+const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+orbitControls.enableDamping = true;
+orbitControls.dampingFactor = 0.06;
+orbitControls.enableZoom = true;
+let exportScaleSelect = null;
+let exportScalePixelsEl = null;
+
+function resize(){
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  updateExportScaleInfo();
+}
+resize();
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+let sceneBgColor = '#000000';
+let pngTransparentPreview = false;
+const canvasWrap = document.getElementById('canvas-wrap');
+
+function applyCanvasAlphaMode(){
+  canvasWrap.classList.toggle('transparent-preview', pngTransparentPreview);
+  renderer.setClearColor(new THREE.Color(sceneBgColor), pngTransparentPreview ? 0 : 1);
+}
+
+function applySceneBackground(hex){
+  sceneBgColor = hex;
+  document.documentElement.style.setProperty('--scene-bg', hex);
+  applyCanvasAlphaMode();
+}
+applySceneBackground(sceneBgColor);
+
+// ── Uniforms ─────────────────────────────────────────────
+const uniforms = {
+  uTime:             { value:0 },
+  uDistortion:       { value:0.30 },
+  uTurbulence:       { value:0.0 },
+  uDispAmp:          { value:1.0 },
+  uStyle:            { value:0.0 },
+  uColorWarp:        { value:0.4 },
+  uLinearFluidity:   { value:0.7 },
+  uClarity:          { value:0.0 },
+  uUltraSharp:       { value:0.0 },
+  uGradientType:     { value:0.0 },
+  uFresnelIntensity: { value:0.5 },
+  uFresnelMode:      { value:0.0 },
+  uFresnelDir:       { value:new THREE.Vector3(1, 0, 0) },
+  uLightMode:        { value:0.0 },
+  uLightDir:         { value:new THREE.Vector3(1, 0, 0) },
+  uLightBrightness:  { value:0.3 },
+  uLightScale:       { value:2.0 },
+  uNoiseIntensity:   { value:0.0 },
+  uNoiseScale:       { value:15.0 },
+  uFilamentIntensity:{ value:0.0 },
+  uFilamentScale:    { value:4.0 },
+  uVoronoiIntensity: { value:0.0 },
+  uVoronoiScale:     { value:3.0 },
+  uTopoIntensity:    { value:0.0 },
+  uTopoFreq:         { value:10.0 },
+  uRippleIntensity:  { value:0.0 },
+  uRippleFreq:       { value:10.0 },
+  uColors: { value: [
+    new THREE.Color('#38bdf8'), new THREE.Color('#a78bfa'),
+    new THREE.Color('#f472b6'), new THREE.Color('#c4f0ff'),
+    new THREE.Color('#7ee8fa'), new THREE.Color('#ffffff'),
+    new THREE.Color('#ffffff'), new THREE.Color('#ffffff'),
+    new THREE.Color('#ffffff'), new THREE.Color('#ffffff'),
+    new THREE.Color('#ffffff'), new THREE.Color('#ffffff'),
+  ]},
+  uColorCount:   { value: 5 },
+  uBaseColor:    { value: new THREE.Color('#ffffff') },
+  uColorOpacity: { value: 1.0 },
+  // Sharp Fold
+  uSharpness:    { value: 8.0 },
+  uSmoothMix:    { value: 0.5 },
+  uBandScale:    { value: 1.5 },
+  uSharpDrift:   { value: 0.3 },
+  // Fluid Glass
+  uFluidSwirl:   { value: 1.0 },
+  uThinFilm:     { value: 0.0 },
+  uChromaticAb:  { value: 0.0 },
+  uFoldLines:    { value: 0.0 },
+  // Material system
+  uRoughness:    { value: 0.0 },
+  uMetallic:     { value: 0.0 },
+  uSpecPow:      { value: 64.0 },
+  uFuzzyIntensity:{ value: 0.0 },
+  uEnvStrength:  { value: 0.6 },
+  uAniso:        { value: 0.5 },
+  uMetallicLayer:{ value: 0.0 },
+};
+
+// ── Outer color layer material (transparent, FrontSide only) ──
+const material = new THREE.ShaderMaterial({
+  vertexShader, fragmentShader, uniforms,
+  extensions:     { derivatives: true },
+  transparent:    true,
+  depthWrite:     false,
+  depthTest:      true,
+  polygonOffset:  true,        // push outer slightly forward → kills z-fighting dots
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits:  -1,
+  side: THREE.FrontSide,
+});
+
+// ── Inner base material (opaque, no displacement) ─────────
+// Uses a minimal flat shader driven by uBaseColor uniform.
+// Rendered first (renderOrder 0) to block the dark background,
+// then the color layer (renderOrder 1) composites on top.
+const innerVertShader = `
+  uniform float uTime;
+  uniform float uDistortion;
+  uniform float uTurbulence;
+  uniform float uDispAmp;
+  uniform float uStyle;
+  uniform float uFilamentIntensity; uniform float uFilamentScale;
+  uniform float uVoronoiIntensity;  uniform float uVoronoiScale;
+  uniform float uTopoIntensity;     uniform float uTopoFreq;
+  uniform float uRippleIntensity;   uniform float uRippleFreq;
+  varying vec3 vNormal;
+
+  ${noiseGLSL}
+
+  float getDisplacement(vec3 pos){
+    float freq1 = (uStyle > 0.5) ? 1.5 : 0.8;
+    float d1 = snoise(pos * freq1 + uTime * 0.3) * uDistortion;
+    float d2 = snoise(pos * 4.0 + uTime * 1.5) * uTurbulence * 0.5;
+    float ridge = abs(snoise(pos*uFilamentScale + uTime*0.2));
+    float d3 = (1.0 - pow(ridge, 0.5)) * uFilamentIntensity * 0.5;
+    float d4 = (1.0 - voronoi(pos*uVoronoiScale + uTime*0.1)) * uVoronoiIntensity * 0.2;
+    float topoN = snoise(pos + uTime*0.1);
+    float bands = smoothstep(0.8, 1.0, sin(topoN*uTopoFreq));
+    float d5 = bands * uTopoIntensity * 0.3;
+    float rip = sin(length(pos.xz)*uRippleFreq + uTime*2.0)
+              + sin(length(pos.xy)*uRippleFreq*0.8 - uTime*1.5);
+    float d6 = rip * uRippleIntensity * 0.1;
+    return d1 + d2 - d3 + d4 + d5 + d6;
+  }
+
+  void main(){
+    float disp = getDisplacement(position) * uDispAmp;
+    vec3 newPos = position + normal * disp;
+    if(uStyle < 0.5){
+      float eps = 0.1;
+      float dx = getDisplacement(position+vec3(eps,0,0)) - getDisplacement(position-vec3(eps,0,0));
+      float dy = getDisplacement(position+vec3(0,eps,0)) - getDisplacement(position-vec3(0,eps,0));
+      float dz = getDisplacement(position+vec3(0,0,eps)) - getDisplacement(position-vec3(0,0,eps));
+      vNormal = normalize(normal - vec3(dx,dy,dz)/(2.0*eps));
+    } else {
+      vNormal = normal;
+    }
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+  }
+`;
+
+const innerFragShader = `
+  uniform vec3 uBaseColor;
+  varying vec3 vNormal;
+  void main(){
+    vec3 N = normalize(vNormal);
+    // Simple ambient + directional shading so the base isn't flat
+    vec3 L = normalize(vec3(1.5, 2.0, 1.2));
+    float diff = max(0.0, dot(N, L)) * 0.35 + 0.65; // ambient 0.65
+    gl_FragColor = vec4(uBaseColor * diff, 1.0);
+  }
+`;
+
+const innerMaterial = new THREE.ShaderMaterial({
+  vertexShader:   innerVertShader,
+  fragmentShader: innerFragShader,
+  uniforms,          // shares the same uniforms object — displacement stays in sync
+  transparent: false,
+  side: THREE.FrontSide,
+});
+
+// ── Geometry helpers ──────────────────────────────────────
+// Rounded box: subdivide a sphere and squish into box shape via Lp-norm
+function makeRoundedBox(size, radius, segments){
+  const g = new THREE.IcosahedronGeometry(size * 0.866, segments);
+  const pos = g.attributes.position;
+  const v = new THREE.Vector3();
+  const s = size * 0.5;
+  for(let i = 0; i < pos.count; i++){
+    v.fromBufferAttribute(pos, i);
+    // Clamp to rounded box surface
+    const cx = Math.max(-s + radius, Math.min(s - radius, v.x));
+    const cy = Math.max(-s + radius, Math.min(s - radius, v.y));
+    const cz = Math.max(-s + radius, Math.min(s - radius, v.z));
+    const dx = v.x - cx, dy = v.y - cy, dz = v.z - cz;
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+    pos.setXYZ(i, cx + dx/len*radius, cy + dy/len*radius, cz + dz/len*radius);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+// Parametric tube builder (for knots & custom curves)
+function makeTube(curveFn, tubeSeg, radSeg, tubeR){
+  const points = [];
+  for(let i = 0; i <= tubeSeg; i++){
+    const t = (i / tubeSeg) * Math.PI * 2;
+    points.push(curveFn(t));
+  }
+  const curve = new THREE.CatmullRomCurve3(points, true);
+  return new THREE.TubeGeometry(curve, tubeSeg, tubeR, radSeg, true);
+}
+
+// Star shape helper
+function makeStarGeometry(spikes, outerR, innerR, height, segs){
+  const shape = new THREE.Shape();
+  for(let i = 0; i < spikes * 2; i++){
+    const angle = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    if(i === 0) shape.moveTo(Math.cos(angle)*r, Math.sin(angle)*r);
+    else shape.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+  }
+  shape.closePath();
+  const extrudeSettings = { depth: height, bevelEnabled: true, bevelThickness: 0.15, bevelSize: 0.15, bevelSegments: 6 };
+  const g = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  g.center();
+  g.computeVertexNormals();
+  return g;
+}
+
+// ── Geometry factory ──────────────────────────────────────
+const GEO_QUALITY_PROFILES = {
+  legacy: {
+    ico: 64,
+    rounded: 60,
+    torusRadial: 64,
+    torusTubular: 120,
+    coneRadial: 80,
+    coneHeight: 40,
+    knotTubular: 160,
+    knotRadialA: 32,
+    knotRadialB: 28,
+  },
+  balanced: {
+    ico: 44,
+    rounded: 40,
+    torusRadial: 44,
+    torusTubular: 86,
+    coneRadial: 56,
+    coneHeight: 24,
+    knotTubular: 110,
+    knotRadialA: 22,
+    knotRadialB: 18,
+  },
+  low: {
+    ico: 28,
+    rounded: 28,
+    torusRadial: 30,
+    torusTubular: 62,
+    coneRadial: 36,
+    coneHeight: 16,
+    knotTubular: 78,
+    knotRadialA: 16,
+    knotRadialB: 14,
+  },
+};
+
+const geometryCache = new Map();
+let geometryQuality = 'legacy';
+let currentShape = 'sphere';
+
+function getShapeDisplacementAmp(type){
+  switch(type){
+    case 'torus': return 0.42;
+    case 'trefoil': return 0.40;
+    case 'twist': return 0.36;
+    case 'chain': return 0.34;
+    case 'hemisphere': return 0.32;
+    default: return 1.0;
+  }
+}
+
+function createGeometry(type, quality){
+  const q = GEO_QUALITY_PROFILES[quality] || GEO_QUALITY_PROFILES.legacy;
+  let g;
+  switch(type){
+
+    case 'sphere':
+      g = new THREE.IcosahedronGeometry(1.2, q.ico); break;
+
+    // Rounded cube — sphere projected into box via SDF
+    case 'rcube':
+      g = makeRoundedBox(2.2, 0.42, q.rounded); break;
+
+    // Rounded tablet / pill — wide flat rounded box
+    case 'rtablet': {
+      g = makeRoundedBox(2.2, 0.55, q.rounded);
+      const pos = g.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        pos.setY(i, pos.getY(i) * 0.52);
+        pos.setX(i, pos.getX(i) * 1.25);
+      }
+      g.computeVertexNormals(); break;
+    }
+
+    case 'torus':
+      g = new THREE.TorusGeometry(1.0, 0.38, q.torusRadial, q.torusTubular); break;
+
+    case 'egg': {
+      g = new THREE.IcosahedronGeometry(1.2, q.ico);
+      const pos = g.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        const y = pos.getY(i);
+        // Squish bottom, bulge top — egg shape
+        const t = y / 1.2 * 0.5 + 0.5; // 0..1
+        const scale = 0.82 + 0.35 * t;
+        pos.setX(i, pos.getX(i) * scale);
+        pos.setZ(i, pos.getZ(i) * scale);
+        pos.setY(i, y * 1.35);
+      }
+      g.computeVertexNormals(); break;
+    }
+
+    // Capsule: cylinder with hemisphere caps (built from sphere + scale)
+    case 'capsule': {
+      g = new THREE.IcosahedronGeometry(1.0, q.ico);
+      const pos = g.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        const y = pos.getY(i);
+        // Stretch middle, keep poles round
+        pos.setY(i, y * 1.6 + (y > 0 ? 0.5 : y < 0 ? -0.5 : 0));
+      }
+      g.computeVertexNormals(); break;
+    }
+
+    // Cone — smooth SphereGeometry capped
+    case 'cone':
+      g = new THREE.ConeGeometry(1.2, 2.4, q.coneRadial, q.coneHeight, false);
+      g.computeVertexNormals(); break;
+
+    // Hemisphere / dome
+    case 'hemisphere': {
+      g = new THREE.IcosahedronGeometry(1.3, q.ico);
+      const pos = g.attributes.position;
+      for(let i = 0; i < pos.count; i++){
+        if(pos.getY(i) < 0) pos.setY(i, 0); // clip bottom hemisphere
+      }
+      g.computeVertexNormals(); break;
+    }
+
+    // Trefoil knot
+    case 'trefoil':
+      g = new THREE.TorusKnotGeometry(1.0, 0.34, q.knotTubular, q.knotRadialA, 2, 3); break;
+
+    // Twisted torus — torus knot with twist
+    case 'twist':
+      g = new THREE.TorusKnotGeometry(0.9, 0.30, q.knotTubular, q.knotRadialB, 3, 4); break;
+
+    // 3D Star
+    case 'star': {
+      g = makeStarGeometry(5, 1.1, 0.48, 0.5, 8);
+      // Smooth it a bit by scaling
+      break;
+    }
+
+    // Link / chain knot
+    case 'chain':
+      g = new THREE.TorusKnotGeometry(1.0, 0.24, q.knotTubular, q.knotRadialB, 3, 2); break;
+
+    // Crystal kept in JS for organic mode (not in UI but usable)
+    case 'crystal': {
+      g = new THREE.IcosahedronGeometry(1.3, q.ico);
+      const pos = g.attributes.position;
+      const v = new THREE.Vector3();
+      for(let i=0;i<pos.count;i++){
+        v.fromBufferAttribute(pos,i).normalize();
+        const len = Math.abs(v.x)+Math.abs(v.y)+Math.abs(v.z);
+        v.multiplyScalar(1.3/len);
+        pos.setXYZ(i,v.x,v.y,v.z);
+      }
+      g.computeVertexNormals(); break;
+    }
+
+    default:
+      g = new THREE.IcosahedronGeometry(1.2, q.ico);
+  }
+  return g;
+}
+
+let innerMesh = null;
+let outerMesh = null;
+
+function getGeometryTemplate(type, quality){
+  const key = `${type}:${quality}`;
+  if(!geometryCache.has(key)){
+    geometryCache.set(key, createGeometry(type, quality));
+  }
+  return geometryCache.get(key);
+}
+
+function setShape(type){
+  currentShape = type;
+  // Remove old meshes
+  if(innerMesh){ scene.remove(innerMesh); innerMesh.geometry.dispose(); }
+  if(outerMesh){ scene.remove(outerMesh); outerMesh.geometry.dispose(); }
+
+  uniforms.uDispAmp.value = getShapeDisplacementAmp(type);
+  const template = getGeometryTemplate(type, geometryQuality);
+  const geom = template.clone();
+  const geomClone = template.clone();
+
+  // Inner: opaque base color, renders first
+  innerMesh = new THREE.Mesh(geom, innerMaterial);
+  innerMesh.scale.setScalar(0.998);
+  innerMesh.renderOrder = 0;
+
+  // Outer: transparent color layer, renders on top
+  outerMesh = new THREE.Mesh(geomClone, material);
+  outerMesh.renderOrder = 1;
+  scene.add(innerMesh);
+  scene.add(outerMesh);
+}
+setShape(currentShape);
+
+// Keep both meshes rotation in sync — we'll drive innerMesh, copy to outer
+function syncMeshRotation(dt){
+  if(!innerMesh || !outerMesh) return;
+  if(autoRotate && isPlaying){
+    innerMesh.rotation.y += dt * 0.18 * speedMult;
+    innerMesh.rotation.x += dt * 0.06 * speedMult;
+  }
+  outerMesh.rotation.copy(innerMesh.rotation);
+}
+
+// ── State ────────────────────────────────────────────────
+let isPlaying = true;
+let speedMult = 0.5;
+let autoRotate = true;
+const clock = new THREE.Clock();
+
+// ── Render loop ──────────────────────────────────────────
+let frameCount=0, fpsTimer=0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  frameCount++; fpsTimer+=dt;
+  if(fpsTimer>=1){ document.getElementById('fps-val').textContent=frameCount; frameCount=0; fpsTimer=0; }
+
+  if(isPlaying){
+    uniforms.uTime.value += dt * speedMult;
+    document.getElementById('time-val').textContent = uniforms.uTime.value.toFixed(1)+'s';
+  }
+
+  syncMeshRotation(dt);
+
+  orbitControls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── UI wiring ────────────────────────────────────────────
+
+// Shape buttons
+document.querySelectorAll('.shape-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.shape-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    setShape(btn.dataset.shape);
+  });
+});
+
+// Scene background picker
+const bgColorInput = document.getElementById('bgColor');
+bgColorInput.value = '#000000';
+bgColorInput.addEventListener('input', e => {
+  applySceneBackground(e.target.value);
+});
+document.getElementById('pngTransparent').addEventListener('change', e => {
+  pngTransparentPreview = e.target.checked;
+  applyCanvasAlphaMode();
+});
+
+// Geometry quality (legacy is exact current look)
+const geoQualitySelect = document.getElementById('geoQuality');
+geoQualitySelect.addEventListener('change', e => {
+  const selected = e.target.value;
+  if(!GEO_QUALITY_PROFILES[selected]) return;
+  geometryQuality = selected;
+  setShape(currentShape);
+  toast(`Geometry quality: ${selected}`);
+});
+
+function applyUltraSharpMode(enabled){
+  uniforms.uUltraSharp.value = enabled ? 1.0 : 0.0;
+  toast(enabled ? 'Ultra Sharp enabled.' : 'Ultra Sharp disabled.');
+}
+
+document.getElementById('ultraSharpToggle').addEventListener('change', e => {
+  applyUltraSharpMode(e.target.checked);
+});
+
+// ── Dynamic color palette system ─────────────────────────
+const MAX_COLORS = 12;
+const MIN_COLORS = 2;
+const DEFAULT_THEME_ID = 'lava';
+function getThemeById(themeId){
+  return THEMES.find(t => t.id === themeId) || null;
+}
+let paletteColors = [...((getThemeById(DEFAULT_THEME_ID) || THEMES[0]).colors)];
+
+function syncColorsToShader(){
+  const n = paletteColors.length;
+  uniforms.uColorCount.value = n;
+  for(let i = 0; i < 12; i++){
+    uniforms.uColors.value[i].setStyle(paletteColors[i] || paletteColors[n-1]);
+  }
+}
+
+function renderColorGrid(){
+  const grid = document.getElementById('color-grid');
+  grid.innerHTML = '';
+
+  paletteColors.forEach((hex, idx) => {
+    const item = document.createElement('div');
+    item.className = 'color-item';
+
+    const label = document.createElement('label');
+    label.textContent = `C${idx+1}`;
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = hex;
+    input.addEventListener('input', e => {
+      paletteColors[idx] = e.target.value;
+      syncColorsToShader();
+      setActiveThemeButton(null);
+    });
+
+    // Remove button (only if more than MIN_COLORS)
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'color-remove';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Remove color';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if(paletteColors.length <= MIN_COLORS) return;
+      paletteColors.splice(idx, 1);
+      syncColorsToShader();
+      renderColorGrid();
+      setActiveThemeButton(null);
+    });
+
+    item.appendChild(label);
+    item.appendChild(input);
+    if(paletteColors.length > MIN_COLORS) item.appendChild(removeBtn);
+    grid.appendChild(item);
+  });
+
+  // Add color button (if under max)
+  if(paletteColors.length < MAX_COLORS){
+    const addItem = document.createElement('div');
+    addItem.className = 'color-item';
+    const addLabel = document.createElement('label');
+    addLabel.textContent = `+`;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-color-btn';
+    addBtn.textContent = '+';
+    addBtn.title = 'Add color';
+    addBtn.addEventListener('click', () => {
+      // default: interpolate between last two colors
+      const last = paletteColors[paletteColors.length - 1];
+      paletteColors.push(last);
+      syncColorsToShader();
+      renderColorGrid();
+    });
+    addItem.appendChild(addLabel);
+    addItem.appendChild(addBtn);
+    grid.appendChild(addItem);
+  }
+}
+
+function setActiveThemeButton(themeId){
+  document.querySelectorAll('#theme-grid .theme-btn').forEach(b => {
+    b.classList.toggle('active', !!themeId && b.dataset.themeId === themeId);
+  });
+}
+
+function applyThemeById(themeId, options = {}){
+  const theme = getThemeById(themeId);
+  if(!theme) return false;
+  setActiveThemeButton(theme.id);
+  paletteColors = [...theme.colors];
+  syncColorsToShader();
+  renderColorGrid();
+  if(options.forceGradient && theme.id === 'iridescent'){
+    const sel = document.getElementById('gradientType');
+    if(sel){
+      sel.value = 'fluid';
+      sel.dispatchEvent(new Event('change'));
+    }
+  }
+  return true;
+}
+
+// ── Theme buttons — build dynamically ─────────────────────
+function buildThemeGrid(){
+  const grid = document.getElementById('theme-grid');
+  grid.innerHTML = '';
+  THEMES.forEach((t) => {
+    const btn = document.createElement('button');
+    btn.className = 'theme-btn' + (t.id === DEFAULT_THEME_ID ? ' active' : '');
+    btn.dataset.themeId = t.id;
+    btn.innerHTML = `
+      <div class="theme-swatch" style="background:${t.swatch}"></div>
+      <span>${t.name}</span>`;
+    btn.addEventListener('click', () => {
+      applyThemeById(t.id, { forceGradient: true });
+    });
+    grid.appendChild(btn);
+  });
+}
+
+buildThemeGrid();
+applyThemeById(DEFAULT_THEME_ID);
+document.getElementById('theme-random-btn').addEventListener('click', () => {
+  const randomColor = () => {
+    const h = Math.floor(Math.random() * 360);
+    const s = 60 + Math.random() * 30;
+    const l = 45 + Math.random() * 20;
+    const c = (1 - Math.abs(2 * (l / 100) - 1)) * (s / 100);
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = (l / 100) - c / 2;
+    let r = 0, g = 0, b = 0;
+    if(h < 60){ r = c; g = x; }
+    else if(h < 120){ r = x; g = c; }
+    else if(h < 180){ g = c; b = x; }
+    else if(h < 240){ g = x; b = c; }
+    else if(h < 300){ r = x; b = c; }
+    else { r = c; b = x; }
+    const toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  };
+  const count = Math.max(3, Math.min(8, paletteColors.length || 5));
+  paletteColors = Array.from({ length: count }, randomColor);
+  syncColorsToShader();
+  renderColorGrid();
+  setActiveThemeButton(null);
+  toast('Random palette generated.');
+});
+
+// ── Material preset system ────────────────────────────────
+// Each preset defines [roughness, metallic, specPow, fuzzy, envStrength, aniso, metallicLayer]
+const MAT_PRESETS = {
+  glossy:   [0.00, 0.00, 128, 0.00, 0.6, 0.5, 0],
+  matte:    [0.85, 0.00,   4, 0.00, 0.0, 0.0, 0],
+  metallic: [0.05, 0.90,  96, 0.00, 0.8, 0.7, 1],
+};
+
+function applyMatPreset(name){
+  const preset = MAT_PRESETS[name] || MAT_PRESETS.glossy;
+  const [rough, metal, spec, fuzz, env, aniso, metalLayer] = preset;
+  const isMetal = name === 'metallic';
+  // Set uniforms
+  uniforms.uRoughness.value     = rough;
+  uniforms.uMetallic.value      = metal;
+  uniforms.uSpecPow.value       = spec;
+  uniforms.uFuzzyIntensity.value= fuzz;
+  uniforms.uEnvStrength.value   = env;
+  uniforms.uAniso.value         = aniso;
+  uniforms.uMetallicLayer.value = metalLayer;
+  // Sync sliders
+  setSliderVal('roughness',    rough);
+  setSliderVal('metallic',     metal);
+  setSliderVal('specPow',      spec);
+  setSliderVal('fuzzyIntensity', fuzz);
+  setSliderVal('envStrength',  env);
+  setSliderVal('aniso',        aniso);
+  // Sync metallic layer UI (only visible for Metal preset)
+  const layerWrap = document.getElementById('metallic-layer-wrap');
+  const toggle = document.getElementById('metallic-toggle');
+  const controls = document.getElementById('metallic-controls');
+  layerWrap.style.display = isMetal ? 'block' : 'none';
+  if(isMetal){
+    toggle.checked = metalLayer > 0.5;
+    controls.style.display = toggle.checked ? 'block' : 'none';
+  } else {
+    toggle.checked = false;
+    uniforms.uMetallicLayer.value = 0.0;
+    controls.style.display = 'none';
+  }
+}
+
+function setSliderVal(id, val){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.value = val;
+  const dispId = el.id + '-val';
+  // specPow display shows integer, others 1 decimal
+  const disp = document.getElementById(dispId);
+  if(disp) disp.textContent = (id === 'specPow') ? Math.round(val) : parseFloat(val).toFixed(1);
+}
+
+const FLUID_DEFAULTS = {
+  fluidSwirl: 1.0,
+  thinFilm: 0.0,
+  chromaticAb: 0.0,
+  foldLines: 0.0,
+};
+
+function resetFluidControls(){
+  setSliderVal('fluidSwirl', FLUID_DEFAULTS.fluidSwirl);
+  setSliderVal('thinFilm', FLUID_DEFAULTS.thinFilm);
+  setSliderVal('chromaticAb', FLUID_DEFAULTS.chromaticAb);
+  setSliderVal('foldLines', FLUID_DEFAULTS.foldLines);
+  uniforms.uFluidSwirl.value  = FLUID_DEFAULTS.fluidSwirl;
+  uniforms.uThinFilm.value    = FLUID_DEFAULTS.thinFilm;
+  uniforms.uChromaticAb.value = FLUID_DEFAULTS.chromaticAb;
+  uniforms.uFoldLines.value   = FLUID_DEFAULTS.foldLines;
+}
+
+document.querySelectorAll('.mat-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyMatPreset(btn.dataset.mat);
+  });
+});
+
+// Metallic toggle
+document.getElementById('metallic-toggle').addEventListener('change', e => {
+  if(document.getElementById('metallic-layer-wrap').style.display === 'none') return;
+  uniforms.uMetallicLayer.value = e.target.checked ? 1.0 : 0.0;
+  document.getElementById('metallic-controls').style.display = e.target.checked ? 'block' : 'none';
+});
+
+// Gradient type (0=linear, 1=radial, 2=fluid glass, 3=sharp fold)
+let activeGradientType = document.getElementById('gradientType').value || 'linear';
+document.getElementById('gradientType').addEventListener('change',e=>{
+  const v = e.target.value;
+  const prev = activeGradientType;
+  activeGradientType = v;
+  uniforms.uGradientType.value = {linear:0.0, radial:1.0, fluid:2.0, sharp:3.0}[v] ?? 0.0;
+  document.getElementById('fluid-controls').style.display  = v==='fluid'  ? 'block' : 'none';
+  document.getElementById('sharp-controls').style.display  = v==='sharp'  ? 'block' : 'none';
+  if(prev === 'fluid' && v !== 'fluid'){
+    resetFluidControls();
+  }
+  if(v === 'fluid'){
+    uniforms.uThinFilm.value    = parseFloat(document.getElementById('thinFilm').value);
+    uniforms.uChromaticAb.value = parseFloat(document.getElementById('chromaticAb').value);
+    uniforms.uFoldLines.value   = parseFloat(document.getElementById('foldLines').value);
+    uniforms.uFluidSwirl.value  = parseFloat(document.getElementById('fluidSwirl').value);
+  }
+  if(v === 'sharp'){
+    uniforms.uSharpness.value  = parseFloat(document.getElementById('sharpness').value);
+    uniforms.uSmoothMix.value  = parseFloat(document.getElementById('smoothMix').value);
+    uniforms.uBandScale.value  = parseFloat(document.getElementById('bandScale').value);
+    uniforms.uSharpDrift.value = parseFloat(document.getElementById('sharpDrift').value);
+  }
+});
+
+const DIRECTION_PRESETS = {
+  right:  new THREE.Vector3(1, 0, 0),
+  left:   new THREE.Vector3(-1, 0, 0),
+  top:    new THREE.Vector3(0, 1, 0),
+  bottom: new THREE.Vector3(0, -1, 0),
+  front:  new THREE.Vector3(0, 0, 1),
+  back:   new THREE.Vector3(0, 0, -1),
+};
+
+function applyFresnelMode(mode){
+  const directional = mode === 'directional';
+  uniforms.uFresnelMode.value = directional ? 1.0 : 0.0;
+  document.getElementById('fresnelDirectionWrap').style.display = directional ? 'block' : 'none';
+}
+
+function applyFresnelDirection(dir){
+  const next = DIRECTION_PRESETS[dir] || DIRECTION_PRESETS.right;
+  uniforms.uFresnelDir.value.copy(next);
+}
+
+document.getElementById('fresnelMode').addEventListener('change', e => {
+  applyFresnelMode(e.target.value);
+});
+
+document.getElementById('fresnelDirection').addEventListener('change', e => {
+  applyFresnelDirection(e.target.value);
+});
+
+applyFresnelMode(document.getElementById('fresnelMode').value);
+applyFresnelDirection(document.getElementById('fresnelDirection').value);
+uniforms.uLightMode.value = 0.0;
+
+// Generic slider binder
+function bindSlider(id, displayId, setter){
+  const el=document.getElementById(id), disp=document.getElementById(displayId);
+  el.addEventListener('input',()=>{
+    const v=parseFloat(el.value);
+    disp.textContent=v.toFixed(1);
+    setter(v);
+  });
+}
+
+bindSlider('colorOpacity',    'colorOpacity-val',    v => uniforms.uColorOpacity.value = v);
+document.getElementById('baseColor').addEventListener('input', e => {
+  uniforms.uBaseColor.value.setStyle(e.target.value);
+});
+// Material sliders
+bindSlider('roughness',      'roughness-val',   v=>{ uniforms.uRoughness.value=v; });
+bindSlider('metallic',       'metallic-val',    v=>{ uniforms.uMetallic.value=v; });
+bindSlider('specPow',        'specPow-val',     v=>{ uniforms.uSpecPow.value=v;
+  document.getElementById('specPow-val').textContent=Math.round(v); });
+bindSlider('fuzzyIntensity', 'fuzzy-val',       v=>{ uniforms.uFuzzyIntensity.value=v; });
+bindSlider('envStrength',    'envStrength-val', v=>{ uniforms.uEnvStrength.value=v; });
+bindSlider('aniso',          'aniso-val',       v=>{ uniforms.uAniso.value=v; });
+
+// Sharp Fold sliders
+bindSlider('sharpness',  'sharpness-val',  v=>uniforms.uSharpness.value=v);
+bindSlider('smoothMix',  'smoothMix-val',  v=>uniforms.uSmoothMix.value=v);
+bindSlider('bandScale',  'bandScale-val',  v=>uniforms.uBandScale.value=v);
+bindSlider('sharpDrift', 'sharpDrift-val', v=>uniforms.uSharpDrift.value=v);
+
+// Fluid Glass sliders
+bindSlider('fluidSwirl',  'fluidSwirl-val',  v=>uniforms.uFluidSwirl.value=v);
+bindSlider('thinFilm',    'thinFilm-val',    v=>uniforms.uThinFilm.value=v);
+bindSlider('chromaticAb', 'chromaticAb-val', v=>uniforms.uChromaticAb.value=v);
+bindSlider('foldLines',   'foldLines-val',   v=>uniforms.uFoldLines.value=v);
+
+bindSlider('colorWarp',       'colorWarp-val',       v=>uniforms.uColorWarp.value=v);
+bindSlider('linearFluidity',  'linearFluidity-val',  v=>uniforms.uLinearFluidity.value=v);
+bindSlider('clarity',         'clarity-val',         v=>uniforms.uClarity.value=v);
+bindSlider('fresnelIntensity','fresnel-val',          v=>uniforms.uFresnelIntensity.value=v);
+bindSlider('lightBrightness', 'lightBrightness-val',  v=>uniforms.uLightBrightness.value=v);
+bindSlider('lightScale',      'lightScale-val',       v=>uniforms.uLightScale.value=v);
+bindSlider('speed',           'speed-val',            v=>speedMult=v);
+bindSlider('distortion',      'distortion-val',       v=>uniforms.uDistortion.value=v);
+bindSlider('turbulence',      'turbulence-val',       v=>uniforms.uTurbulence.value=v);
+
+const exportSettings = {
+  imageScale: 1,
+  videoFormat: 'webm',
+  videoResolution: 'source',
+  videoAspect: 'source',
+  durationSec: 8,
+  fps: 60,
+  bitrateMbps: 12,
+};
+
+const exportModal = document.getElementById('export-modal');
+const openExportModalBtn = document.getElementById('open-export-modal');
+const closeExportModalBtn = document.getElementById('close-export-modal');
+const exportTabButtons = Array.from(document.querySelectorAll('.export-tab'));
+const exportPanes = Array.from(document.querySelectorAll('.export-pane'));
+const videoFormatChipButtons = Array.from(document.querySelectorAll('#video-format-chips [data-video-format]'));
+const videoResChipButtons = Array.from(document.querySelectorAll('#video-res-chips [data-video-res]'));
+const videoAspectChipButtons = Array.from(document.querySelectorAll('#video-aspect-chips [data-video-aspect]'));
+const imageFormatChipButtons = Array.from(document.querySelectorAll('#image-format-chips [data-image-format]'));
+const codeFormatChipButtons = Array.from(document.querySelectorAll('#code-format-chips [data-code-format]'));
+const codeOutput = document.getElementById('code-output');
+const codePreviewImage = document.getElementById('code-preview-image');
+const codeLoopNote = document.getElementById('code-loop-note');
+const codeBehaviorNote = document.getElementById('code-behavior-note');
+const shareLinkBtn = document.getElementById('share-link-btn');
+exportScaleSelect = document.getElementById('exportScale');
+exportScalePixelsEl = document.getElementById('exportScalePixels');
+let selectedVideoFormat = 'webm';
+let selectedImageFormat = 'png';
+let selectedCodeFormat = 'vanilla';
+let currentExportTab = 'video';
+let codePreviewRafId = 0;
+let codePreviewLastMs = 0;
+let codeLoopSeconds = 0;
+let codeTimeSpeed = 1;
+
+function toNumber(value, fallback){
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clampValue(value, min, max){
+  return Math.max(min, Math.min(max, value));
+}
+
+function applyRangeValue(id, value){
+  const input = document.getElementById(id);
+  if(!input) return;
+  const min = toNumber(input.min, Number.NEGATIVE_INFINITY);
+  const max = toNumber(input.max, Number.POSITIVE_INFINITY);
+  const next = clampValue(toNumber(value, toNumber(input.value, 0)), min, max);
+  input.value = String(next);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function applySelectValue(id, value){
+  const select = document.getElementById(id);
+  if(!select || value == null) return;
+  const allowed = Array.from(select.options).map(o => o.value);
+  if(!allowed.includes(String(value))) return;
+  select.value = String(value);
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function applyCheckboxValue(id, checked, dispatch = true){
+  const input = document.getElementById(id);
+  if(!input || typeof checked !== 'boolean') return;
+  input.checked = checked;
+  if(dispatch){
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+function encodeShareState(state){
+  const json = JSON.stringify(state);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function decodeShareState(encoded){
+  const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '==='.slice((base64.length + 3) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const json = new TextDecoder().decode(bytes);
+  return JSON.parse(json);
+}
+
+function getShareStateFromUrl(){
+  const hash = window.location.hash || '';
+  if(!hash.startsWith('#s=')) return null;
+  const payload = hash.slice(3).trim();
+  if(!payload) return null;
+  try{
+    return decodeShareState(payload);
+  }catch(_){
+    return null;
+  }
+}
+
+function getActiveThemeId(){
+  const btn = document.querySelector('#theme-grid .theme-btn.active');
+  return btn ? btn.dataset.themeId || null : null;
+}
+
+function getActiveMaterialPreset(){
+  const btn = document.querySelector('.mat-btn.active');
+  return btn ? btn.dataset.mat || 'glossy' : 'glossy';
+}
+
+function captureShareState(){
+  return {
+    v: 1,
+    shape: currentShape,
+    themeId: getActiveThemeId(),
+    palette: [...paletteColors],
+    baseColor: document.getElementById('baseColor').value,
+    colorOpacity: uniforms.uColorOpacity.value,
+    bgColor: sceneBgColor,
+    pngTransparent: !!document.getElementById('pngTransparent').checked,
+    gradientType: document.getElementById('gradientType').value,
+    colorWarp: uniforms.uColorWarp.value,
+    linearFluidity: uniforms.uLinearFluidity.value,
+    clarity: uniforms.uClarity.value,
+    ultraSharp: uniforms.uUltraSharp.value > 0.5,
+    fresnelIntensity: uniforms.uFresnelIntensity.value,
+    fresnelMode: document.getElementById('fresnelMode').value,
+    fresnelDirection: document.getElementById('fresnelDirection').value,
+    lightBrightness: uniforms.uLightBrightness.value,
+    lightScale: uniforms.uLightScale.value,
+    speed: speedMult,
+    distortion: uniforms.uDistortion.value,
+    turbulence: uniforms.uTurbulence.value,
+    autoRotate: autoRotate,
+    isPlaying: isPlaying,
+    geometryQuality: geometryQuality,
+    materialPreset: getActiveMaterialPreset(),
+    roughness: uniforms.uRoughness.value,
+    metallic: uniforms.uMetallic.value,
+    specPow: uniforms.uSpecPow.value,
+    fuzzyIntensity: uniforms.uFuzzyIntensity.value,
+    metallicLayer: uniforms.uMetallicLayer.value > 0.5,
+    envStrength: uniforms.uEnvStrength.value,
+    aniso: uniforms.uAniso.value,
+    fluidSwirl: uniforms.uFluidSwirl.value,
+    thinFilm: uniforms.uThinFilm.value,
+    chromaticAb: uniforms.uChromaticAb.value,
+    foldLines: uniforms.uFoldLines.value,
+    sharpness: uniforms.uSharpness.value,
+    smoothMix: uniforms.uSmoothMix.value,
+    bandScale: uniforms.uBandScale.value,
+    sharpDrift: uniforms.uSharpDrift.value,
+    filamentIntensity: uniforms.uFilamentIntensity.value,
+    filamentScale: uniforms.uFilamentScale.value,
+    topoIntensity: uniforms.uTopoIntensity.value,
+    topoFreq: uniforms.uTopoFreq.value,
+    rippleIntensity: uniforms.uRippleIntensity.value,
+    rippleFreq: uniforms.uRippleFreq.value,
+    noiseIntensity: uniforms.uNoiseIntensity.value,
+    noiseScale: uniforms.uNoiseScale.value,
+    videoFormat: selectedVideoFormat,
+    videoResolution: exportSettings.videoResolution,
+    videoAspect: exportSettings.videoAspect,
+  };
+}
+
+function applyShareState(state){
+  if(!state || typeof state !== 'object') return false;
+
+  if(typeof state.shape === 'string'){
+    const shapeBtn = document.querySelector(`.shape-btn[data-shape="${state.shape}"]`);
+    if(shapeBtn) shapeBtn.click();
+  }
+
+  if(Array.isArray(state.palette) && state.palette.length >= MIN_COLORS && state.palette.length <= MAX_COLORS){
+    paletteColors = state.palette
+      .map(v => String(v || '').trim())
+      .filter(v => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v));
+    if(paletteColors.length >= MIN_COLORS){
+      syncColorsToShader();
+      renderColorGrid();
+    }
+  }
+
+  if(typeof state.themeId === 'string' && getThemeById(state.themeId)){
+    setActiveThemeButton(state.themeId);
+  } else {
+    setActiveThemeButton(null);
+  }
+
+  if(typeof state.baseColor === 'string'){
+    const input = document.getElementById('baseColor');
+    input.value = state.baseColor;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  applyRangeValue('colorOpacity', state.colorOpacity);
+
+  if(typeof state.bgColor === 'string'){
+    const input = document.getElementById('bgColor');
+    input.value = state.bgColor;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  applyCheckboxValue('pngTransparent', !!state.pngTransparent, true);
+
+  applySelectValue('gradientType', state.gradientType);
+  applyRangeValue('colorWarp', state.colorWarp);
+  applyRangeValue('linearFluidity', state.linearFluidity);
+  applyRangeValue('clarity', state.clarity);
+  applyRangeValue('fresnelIntensity', state.fresnelIntensity);
+  applySelectValue('fresnelMode', state.fresnelMode);
+  applySelectValue('fresnelDirection', state.fresnelDirection);
+  applyRangeValue('lightBrightness', state.lightBrightness);
+  applyRangeValue('lightScale', state.lightScale);
+  applyRangeValue('speed', state.speed);
+  applyRangeValue('distortion', state.distortion);
+  applyRangeValue('turbulence', state.turbulence);
+
+  applyRangeValue('fluidSwirl', state.fluidSwirl);
+  applyRangeValue('thinFilm', state.thinFilm);
+  applyRangeValue('chromaticAb', state.chromaticAb);
+  applyRangeValue('foldLines', state.foldLines);
+
+  applyRangeValue('sharpness', state.sharpness);
+  applyRangeValue('smoothMix', state.smoothMix);
+  applyRangeValue('bandScale', state.bandScale);
+  applyRangeValue('sharpDrift', state.sharpDrift);
+
+  applyRangeValue('filamentIntensity', state.filamentIntensity);
+  applyRangeValue('filamentScale', state.filamentScale);
+  applyRangeValue('topoIntensity', state.topoIntensity);
+  applyRangeValue('topoFreq', state.topoFreq);
+  applyRangeValue('rippleIntensity', state.rippleIntensity);
+  applyRangeValue('rippleFreq', state.rippleFreq);
+  applyRangeValue('noiseIntensity', state.noiseIntensity);
+  applyRangeValue('noiseScale', state.noiseScale);
+
+  if(typeof state.videoFormat === 'string'){
+    const btn = videoFormatChipButtons.find(b => (b.dataset.videoFormat || 'webm') === state.videoFormat);
+    if(btn){
+      activateChip(videoFormatChipButtons, btn);
+      selectedVideoFormat = btn.dataset.videoFormat === 'mp4' ? 'mp4' : 'webm';
+      exportSettings.videoFormat = selectedVideoFormat;
+    }
+  }
+  if(typeof state.videoResolution === 'string'){
+    const btn = videoResChipButtons.find(b => (b.dataset.videoRes || 'source') === state.videoResolution);
+    if(btn){
+      activateChip(videoResChipButtons, btn);
+      exportSettings.videoResolution = btn.dataset.videoRes || 'source';
+    }
+  }
+  if(typeof state.videoAspect === 'string'){
+    const btn = videoAspectChipButtons.find(b => (b.dataset.videoAspect || 'source') === state.videoAspect);
+    if(btn){
+      activateChip(videoAspectChipButtons, btn);
+      exportSettings.videoAspect = btn.dataset.videoAspect || 'source';
+    }
+  }
+
+  if(typeof state.materialPreset === 'string'){
+    const btn = document.querySelector(`.mat-btn[data-mat="${state.materialPreset}"]`);
+    if(btn) btn.click();
+  }
+  applyRangeValue('roughness', state.roughness);
+  applyRangeValue('metallic', state.metallic);
+  applyRangeValue('specPow', state.specPow);
+  applyRangeValue('fuzzyIntensity', state.fuzzyIntensity);
+  applyRangeValue('envStrength', state.envStrength);
+  applyRangeValue('aniso', state.aniso);
+  applyCheckboxValue('metallic-toggle', !!state.metallicLayer, true);
+
+  const ultraSharpToggle = document.getElementById('ultraSharpToggle');
+  if(typeof state.ultraSharp === 'boolean' && ultraSharpToggle){
+    ultraSharpToggle.checked = state.ultraSharp;
+    uniforms.uUltraSharp.value = state.ultraSharp ? 1.0 : 0.0;
+  }
+
+  applyCheckboxValue('rotate-toggle', !!state.autoRotate, true);
+
+  if(typeof state.geometryQuality === 'string' && GEO_QUALITY_PROFILES[state.geometryQuality]){
+    const qualitySelect = document.getElementById('geoQuality');
+    qualitySelect.value = state.geometryQuality;
+    geometryQuality = state.geometryQuality;
+    setShape(currentShape);
+  }
+
+  if(typeof state.isPlaying === 'boolean' && state.isPlaying !== isPlaying){
+    togglePlayback();
+  }
+  return true;
+}
+
+async function copyShareLink(){
+  const state = captureShareState();
+  let encoded = '';
+  try{
+    encoded = encodeShareState(state);
+  }catch(_){
+    toast('Could not generate share link.');
+    return;
+  }
+  const shareUrl = `${window.location.origin}${window.location.pathname}${window.location.search}#s=${encoded}`;
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(shareUrl);
+    } else {
+      throw new Error('Clipboard unavailable');
+    }
+  }catch(_){
+    const ta = document.createElement('textarea');
+    ta.value = shareUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('Share link copied.');
+  trackEvent('share_link_copied', {
+    shape: state.shape,
+    gradientType: state.gradientType,
+    paletteSize: Array.isArray(state.palette) ? state.palette.length : 0
+  });
+}
+
+function setExportModalOpen(open){
+  exportModal.classList.toggle('open', open);
+  exportModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if(open){
+    updateExportScaleInfo();
+    refreshCodeExport();
+    if(currentExportTab === 'code') startCodePreviewLoop();
+  } else {
+    stopCodePreviewLoop();
+  }
+}
+
+function updateExportScaleInfo(){
+  if(!exportScaleSelect || !exportScalePixelsEl) return;
+  const scale = Math.max(1, Math.min(3, parseInt(exportScaleSelect.value, 10) || 1));
+  let baseW = 0;
+  let baseH = 0;
+  if(typeof renderer.getDrawingBufferSize === 'function'){
+    const base = renderer.getDrawingBufferSize(new THREE.Vector2());
+    baseW = Math.round(base.x || 0);
+    baseH = Math.round(base.y || 0);
+  }
+  if(baseW <= 0 || baseH <= 0){
+    baseW = Math.round(renderer.domElement.width || canvas.clientWidth || 1);
+    baseH = Math.round(renderer.domElement.height || canvas.clientHeight || 1);
+  }
+  baseW = Math.max(1, baseW);
+  baseH = Math.max(1, baseH);
+  const outW = Math.max(1, Math.round(baseW * scale));
+  const outH = Math.max(1, Math.round(baseH * scale));
+  exportScalePixelsEl.textContent = `Output: ${outW} × ${outH}px (${scale}x of ${baseW} × ${baseH})`;
+}
+
+function setExportTab(tabId){
+  currentExportTab = tabId;
+  exportTabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.exportTab === tabId));
+  exportPanes.forEach(pane => pane.classList.toggle('active', pane.dataset.exportPane === tabId));
+  if(tabId === 'code' && exportModal.classList.contains('open')){
+    refreshCodeExport();
+    startCodePreviewLoop();
+  } else {
+    stopCodePreviewLoop();
+  }
+}
+
+function activateChip(buttons, activeButton){
+  buttons.forEach(btn => btn.classList.toggle('active', btn === activeButton));
+}
+
+openExportModalBtn.addEventListener('click', () => setExportModalOpen(true));
+closeExportModalBtn.addEventListener('click', () => setExportModalOpen(false));
+exportModal.querySelector('.modal-backdrop').addEventListener('click', () => setExportModalOpen(false));
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && exportModal.classList.contains('open')){
+    setExportModalOpen(false);
+  }
+});
+exportTabButtons.forEach(btn => {
+  btn.addEventListener('click', () => setExportTab(btn.dataset.exportTab));
+});
+setExportTab('video');
+if(shareLinkBtn){
+  shareLinkBtn.addEventListener('click', () => {
+    copyShareLink();
+  });
+}
+videoFormatChipButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateChip(videoFormatChipButtons, btn);
+    selectedVideoFormat = btn.dataset.videoFormat === 'mp4' ? 'mp4' : 'webm';
+    exportSettings.videoFormat = selectedVideoFormat;
+  });
+});
+videoResChipButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateChip(videoResChipButtons, btn);
+    exportSettings.videoResolution = btn.dataset.videoRes || 'source';
+  });
+});
+videoAspectChipButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateChip(videoAspectChipButtons, btn);
+    exportSettings.videoAspect = btn.dataset.videoAspect || 'source';
+  });
+});
+imageFormatChipButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateChip(imageFormatChipButtons, btn);
+    selectedImageFormat = btn.dataset.imageFormat || 'png';
+  });
+});
+codeFormatChipButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    activateChip(codeFormatChipButtons, btn);
+    selectedCodeFormat = btn.dataset.codeFormat || 'vanilla';
+    refreshCodeExport();
+  });
+});
+
+function getCurrentPaletteHexes(){
+  return paletteColors.map(c => c.toLowerCase());
+}
+
+function formatCodeLoopSeconds(value){
+  return value > 0 ? `${value.toFixed(1)}s` : 'infinite';
+}
+
+function updateCodeLoopNote(){
+  const format = selectedCodeFormat;
+  const isCss = format === 'css';
+  const loopText = formatCodeLoopSeconds(codeLoopSeconds);
+  const speedText = `${codeTimeSpeed.toFixed(1)}x`;
+  if(isCss){
+    codeLoopNote.textContent = `Animation: CSS keyframes. Cycle: ${loopText}. Speed: ${speedText}.`;
+    codeBehaviorNote.textContent = 'Preview düşük FPS snapshot gösterir. CSS çıktısı döngüseldir; Loop Cycle 0 ise 5s varsayılan periyot kullanılır.';
+    return;
+  }
+  codeLoopNote.textContent = `Animation: requestAnimationFrame. Loop: ${loopText}. Speed: ${speedText}.`;
+  codeBehaviorNote.textContent = 'Preview düşük FPS snapshot gösterir. Kod çıktısı animatif gelir; Loop Cycle > 0 ise timeline o saniyede sarar, 0 ise kesintisiz akar.';
+}
+
+function updateCodePreviewFromCanvas(){
+  try{
+    codePreviewImage.src = canvas.toDataURL('image/png');
+  }catch(_){
+    codePreviewImage.removeAttribute('src');
+  }
+}
+
+function stopCodePreviewLoop(){
+  if(codePreviewRafId){
+    cancelAnimationFrame(codePreviewRafId);
+    codePreviewRafId = 0;
+  }
+}
+
+function tickCodePreview(ms){
+  if(!exportModal.classList.contains('open') || currentExportTab !== 'code'){
+    stopCodePreviewLoop();
+    return;
+  }
+  if(ms - codePreviewLastMs > 140){
+    updateCodePreviewFromCanvas();
+    codePreviewLastMs = ms;
+  }
+  codePreviewRafId = requestAnimationFrame(tickCodePreview);
+}
+
+function startCodePreviewLoop(){
+  if(codePreviewRafId) return;
+  codePreviewLastMs = 0;
+  codePreviewRafId = requestAnimationFrame(tickCodePreview);
+}
+
+function generateVanillaSnippet(){
+  const palette = getCurrentPaletteHexes();
+  const loopSecondsLiteral = codeLoopSeconds.toFixed(1);
+  const timeSpeedLiteral = codeTimeSpeed.toFixed(1);
+  return `import * as THREE from 'three';
+
+// Generated by Liquid Shape Maker
+// Animation: requestAnimationFrame (animated output)
+// Loop cycle: ${loopSecondsLiteral === '0.0' ? 'infinite' : `${loopSecondsLiteral}s`}
+// Time speed: ${timeSpeedLiteral}x
+
+const palette = ${JSON.stringify(palette, null, 2)};
+const LOOP_SECONDS = ${loopSecondsLiteral}; // 0 = infinite, >0 = wrap cycle in seconds
+const TIME_SPEED = ${timeSpeedLiteral};
+const uniforms = {
+  uTime: { value: 0 },
+  uDistortion: { value: ${uniforms.uDistortion.value.toFixed(3)} },
+  uTurbulence: { value: ${uniforms.uTurbulence.value.toFixed(3)} },
+  uColorWarp: { value: ${uniforms.uColorWarp.value.toFixed(3)} },
+  uLinearFluidity: { value: ${uniforms.uLinearFluidity.value.toFixed(3)} },
+  uClarity: { value: ${uniforms.uClarity.value.toFixed(3)} },
+  uUltraSharp: { value: ${uniforms.uUltraSharp.value > 0.5 ? 1.0 : 0.0} },
+  uFresnelIntensity: { value: ${uniforms.uFresnelIntensity.value.toFixed(3)} },
+  // TODO: add remaining uniforms/colors from your full shader
+};
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0, 4.5);
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const material = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader,   // paste vertex shader source string
+  fragmentShader, // paste fragment shader source string
+  transparent: true
+});
+const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 64), material);
+scene.add(mesh);
+
+const clock = new THREE.Clock();
+function advanceTime(dt, current){
+  const next = current + dt * TIME_SPEED;
+  return LOOP_SECONDS > 0 ? (next % LOOP_SECONDS) : next;
+}
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  uniforms.uTime.value = advanceTime(dt, uniforms.uTime.value);
+  mesh.rotation.y += dt * 0.18;
+  renderer.render(scene, camera);
+}
+animate();
+`;
+}
+
+function generateReactSnippet(){
+  const palette = getCurrentPaletteHexes();
+  const loopSecondsLiteral = codeLoopSeconds.toFixed(1);
+  const timeSpeedLiteral = codeTimeSpeed.toFixed(1);
+  return `import { Canvas, useFrame } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
+import * as THREE from 'three';
+
+// Generated by Liquid Shape Maker
+// Animation: useFrame / requestAnimationFrame (animated output)
+// Loop cycle: ${loopSecondsLiteral === '0.0' ? 'infinite' : `${loopSecondsLiteral}s`}
+// Time speed: ${timeSpeedLiteral}x
+
+const palette = ${JSON.stringify(palette, null, 2)};
+const LOOP_SECONDS = ${loopSecondsLiteral}; // 0 = infinite, >0 = wrap cycle in seconds
+const TIME_SPEED = ${timeSpeedLiteral};
+
+function LiquidOrb(){
+  const meshRef = useRef();
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uDistortion: { value: ${uniforms.uDistortion.value.toFixed(3)} },
+    uTurbulence: { value: ${uniforms.uTurbulence.value.toFixed(3)} },
+    uColorWarp: { value: ${uniforms.uColorWarp.value.toFixed(3)} },
+  }), []);
+
+  useFrame((_, dt) => {
+    const next = uniforms.uTime.value + dt * TIME_SPEED;
+    uniforms.uTime.value = LOOP_SECONDS > 0 ? (next % LOOP_SECONDS) : next;
+    if(meshRef.current) meshRef.current.rotation.y += dt * 0.18;
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <icosahedronGeometry args={[1, 64]} />
+      <shaderMaterial uniforms={uniforms} vertexShader={vertexShader} fragmentShader={fragmentShader} />
+    </mesh>
+  );
+}
+
+export default function App(){
+  return <Canvas camera={{ position:[0,0,4.5], fov:60 }}><LiquidOrb /></Canvas>;
+}
+`;
+}
+
+function generateCssSnippet(){
+  const palette = getCurrentPaletteHexes().slice(0, 6);
+  const effectiveCycle = codeLoopSeconds > 0 ? codeLoopSeconds : 5;
+  const duration = Math.max(0.2, effectiveCycle / Math.max(0.2, codeTimeSpeed)).toFixed(2);
+  return `.liquid-orb {
+  width: 320px;
+  aspect-ratio: 1;
+  border-radius: 44% 56% 58% 42% / 46% 39% 61% 54%;
+  background: linear-gradient(135deg, ${palette.join(', ')});
+  filter: saturate(1.15);
+  animation: liquidWarp ${duration}s ease-in-out infinite alternate;
+}
+
+@keyframes liquidWarp {
+  0% { transform: rotate(0deg) scale(1); }
+  100% { transform: rotate(24deg) scale(1.05); border-radius: 58% 42% 39% 61% / 44% 62% 38% 56%; }
+}`;
+}
+
+function refreshCodeExport(){
+  const fmt = selectedCodeFormat;
+  let code = '';
+  if(fmt === 'react') code = generateReactSnippet();
+  else if(fmt === 'css') code = generateCssSnippet();
+  else code = generateVanillaSnippet();
+  codeOutput.textContent = code;
+  updateCodeLoopNote();
+  updateCodePreviewFromCanvas();
+}
+
+bindExportSlider('codeLoopSeconds', 'codeLoopSeconds-val', v => v > 0 ? `${v.toFixed(1)}s` : '∞', v => {
+  codeLoopSeconds = v;
+  refreshCodeExport();
+});
+bindExportSlider('codeTimeSpeed', 'codeTimeSpeed-val', v => `${v.toFixed(1)}x`, v => {
+  codeTimeSpeed = v;
+  refreshCodeExport();
+});
+document.getElementById('copy-code').addEventListener('click', async () => {
+  try{
+    await navigator.clipboard.writeText(codeOutput.textContent);
+    toast('Code copied.');
+    trackEvent('code_copied', { type: selectedCodeFormat, loop: codeLoopSeconds, speed: codeTimeSpeed });
+  }catch(_){
+    const ta = document.createElement('textarea');
+    ta.value = codeOutput.textContent;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('Code copied.');
+    trackEvent('code_copied', { type: selectedCodeFormat, loop: codeLoopSeconds, speed: codeTimeSpeed });
+  }
+});
+
+function bindExportSlider(id, labelId, formatter, setter){
+  const input = document.getElementById(id);
+  const label = document.getElementById(labelId);
+  input.addEventListener('input', () => {
+    const value = parseFloat(input.value);
+    label.textContent = formatter(value);
+    setter(value);
+  });
+}
+
+bindExportSlider('videoDuration', 'videoDuration-val', v => `${v.toFixed(1)}s`, v => {
+  exportSettings.durationSec = v;
+});
+bindExportSlider('videoFps', 'videoFps-val', v => `${Math.round(v)}`, v => {
+  exportSettings.fps = Math.round(v);
+});
+bindExportSlider('videoBitrate', 'videoBitrate-val', v => `${v.toFixed(1)}`, v => {
+  exportSettings.bitrateMbps = v;
+});
+
+exportScaleSelect.addEventListener('change', e => {
+  exportSettings.imageScale = Math.max(1, Math.min(3, parseInt(e.target.value, 10) || 1));
+  updateExportScaleInfo();
+});
+updateExportScaleInfo();
+
+// ── Effect groups: accordion + intensity badge + slider binding ──
+function bindFxGroup(groupId, badgeId, intensityId, intensityDisplayId, intensityUniform, extraBindings){
+  const group   = document.getElementById(groupId);
+  const header  = group.querySelector('.fx-header');
+  const badge   = document.getElementById(badgeId);
+  const slider  = document.getElementById(intensityId);
+
+  // Accordion toggle
+  header.addEventListener('click', () => group.classList.toggle('open'));
+
+  // Intensity slider → uniform + badge + active state
+  slider.addEventListener('input', () => {
+    const v = parseFloat(slider.value);
+    document.getElementById(intensityDisplayId).textContent = v.toFixed(1);
+    badge.textContent = v.toFixed(1);
+    intensityUniform(v);
+    const isActive = v > 0.001;
+    group.classList.toggle('active', isActive);
+    // Auto-open when turned on from 0
+    if(isActive && !group.classList.contains('open')) group.classList.add('open');
+  });
+
+  // Extra sliders inside the group
+  if(extraBindings) extraBindings();
+}
+
+bindFxGroup('fx-filament', 'fx-filament-badge', 'filamentIntensity', 'filament-val',
+  v => uniforms.uFilamentIntensity.value = v,
+  () => bindSlider('filamentScale', 'filamentScale-val', v => uniforms.uFilamentScale.value = v)
+);
+
+bindFxGroup('fx-topo', 'fx-topo-badge', 'topoIntensity', 'topo-val',
+  v => uniforms.uTopoIntensity.value = v,
+  () => bindSlider('topoFreq', 'topoFreq-val', v => uniforms.uTopoFreq.value = v)
+);
+
+bindFxGroup('fx-ripple', 'fx-ripple-badge', 'rippleIntensity', 'ripple-val',
+  v => uniforms.uRippleIntensity.value = v,
+  () => bindSlider('rippleFreq', 'rippleFreq-val', v => uniforms.uRippleFreq.value = v)
+);
+
+bindFxGroup('fx-noise', 'fx-noise-badge', 'noiseIntensity', 'noise-val',
+  v => uniforms.uNoiseIntensity.value = v,
+  () => bindSlider('noiseScale', 'noiseScale-val', v => uniforms.uNoiseScale.value = v)
+);
+
+// Auto-rotate
+document.getElementById('rotate-toggle').addEventListener('change',e=>{
+  autoRotate=e.target.checked;
+  if(!autoRotate){ orbitControls.autoRotate=false; }
+});
+
+// Play / pause
+const playIcon=document.getElementById('play-icon'), pauseIcon=document.getElementById('pause-icon');
+function togglePlayback(){
+  isPlaying=!isPlaying;
+  playIcon.style.display  = isPlaying?'none':'';
+  pauseIcon.style.display = isPlaying?'':'none';
+}
+document.getElementById('play-btn').addEventListener('click', togglePlayback);
+document.addEventListener('keydown', e => {
+  if(e.code !== 'Space' && e.key !== ' ') return;
+  const tag = (document.activeElement?.tagName || '').toLowerCase();
+  const inFormField = tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || document.activeElement?.isContentEditable;
+  if(inFormField) return;
+  if(exportModal.classList.contains('open')) return;
+  e.preventDefault();
+  togglePlayback();
+});
+
+// ── Toast ────────────────────────────────────────────────
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+function trackEvent(name, data){
+  try{
+    if(typeof window.va !== 'function') return;
+    const payload = data && typeof data === 'object' ? data : {};
+    try{
+      window.va('event', { name, data: payload });
+      return;
+    }catch(_){}
+    try{
+      window.va('track', name, payload);
+    }catch(_){}
+  }catch(_){}
+}
+
+// ── Export ───────────────────────────────────────────────
+function renderNow(){
+  orbitControls.update();
+  renderer.render(scene, camera);
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function beginCapture(transparent, scale){
+  const prevColor = renderer.getClearColor(new THREE.Color()).clone();
+  const prevAlpha = renderer.getClearAlpha();
+  const prevDpr = renderer.getPixelRatio();
+  const prevSize = renderer.getSize(new THREE.Vector2());
+  const safeScale = Math.max(1, Math.min(3, scale || 1));
+
+  if(safeScale !== 1){
+    renderer.setPixelRatio(prevDpr * safeScale);
+    renderer.setSize(prevSize.x, prevSize.y, false);
+  }
+  renderer.setClearColor(new THREE.Color(sceneBgColor), transparent ? 0 : 1);
+  renderNow();
+  return () => {
+    if(safeScale !== 1){
+      renderer.setPixelRatio(prevDpr);
+      renderer.setSize(prevSize.x, prevSize.y, false);
+    }
+    renderer.setClearColor(prevColor, prevAlpha);
+    renderNow();
+  };
+}
+
+function exportImage(type){
+  const wantTransparent = type === 'image/png' || (type === 'image/webp' && document.getElementById('pngTransparent').checked);
+  const restoreRender = beginCapture(wantTransparent, exportSettings.imageScale);
+  const quality = type === 'image/png' ? undefined : 1.0;
+
+  canvas.toBlob(blob=>{
+    restoreRender();
+    if(!blob){
+      if(type === 'image/webp'){
+        toast('WebP unsupported, falling back to PNG.');
+        trackEvent('image_export_fallback', { from: 'webp', to: 'png' });
+        exportImage('image/png');
+        return;
+      }
+      toast('Export failed.');
+      trackEvent('image_export_failed', { format: type, scale: exportSettings.imageScale });
+      return;
+    }
+    const ext = type === 'image/jpeg' ? 'jpg' : type === 'image/webp' ? 'webp' : 'png';
+    const filename = `liquid-shape.${ext}`;
+    downloadBlob(blob, filename);
+    toast(`Saved as ${filename}`);
+    trackEvent('image_export_success', {
+      format: ext,
+      scale: exportSettings.imageScale,
+      fileSizeBytes: blob.size,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height
+    });
+  }, type, quality);
+}
+document.getElementById('export-image-action').addEventListener('click', () => {
+  const mime = selectedImageFormat === 'jpeg' ? 'image/jpeg' : selectedImageFormat === 'webp' ? 'image/webp' : 'image/png';
+  exportImage(mime);
+});
+
+// WebM video
+let mediaRecorder = null;
+let chunks = [];
+let recordStopTimer = null;
+let restoreVideoResolutionCapture = null;
+const recBtn = document.getElementById('export-video');
+const recDot = document.getElementById('rec-dot');
+
+function getPreferredVideoMime(format){
+  const webmCandidates = [
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp8',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp9',
+    'video/webm',
+  ];
+  const mp4Candidates = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1',
+    'video/mp4',
+  ];
+  const pick = (types) => types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+
+  if(format === 'mp4'){
+    return pick(mp4Candidates) || pick(webmCandidates);
+  }
+  return pick(webmCandidates) || pick(mp4Candidates);
+}
+
+function setRecordingUI(recording){
+  recBtn.textContent = recording ? 'Stop Recording' : 'Record & Download Video';
+  recBtn.classList.toggle('danger', recording);
+  recBtn.classList.toggle('primary', !recording);
+  recDot.style.display = recording ? 'block' : 'none';
+}
+
+function stopRecording(){
+  if(recordStopTimer){
+    clearTimeout(recordStopTimer);
+    recordStopTimer = null;
+  }
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.stop();
+  } else {
+    setRecordingUI(false);
+  }
+}
+
+const VIDEO_RESOLUTION_PRESETS = {
+  '2k': 2560,
+  '4k': 3840,
+};
+const VIDEO_ASPECT_PRESETS = {
+  source: null,
+  square: 1.0,
+  landscape: 16 / 9,
+  portrait: 9 / 16,
+};
+
+function getNextLowerVideoResolution(mode){
+  if(mode === '4k') return '2k';
+  if(mode === '2k') return 'source';
+  return 'source';
+}
+
+function normalizeVideoAspectMode(mode){
+  return Object.prototype.hasOwnProperty.call(VIDEO_ASPECT_PRESETS, mode) ? mode : 'source';
+}
+
+function getCurrentCanvasAspect(){
+  const baseSize = renderer.getSize(new THREE.Vector2());
+  return (baseSize.y > 0) ? (baseSize.x / baseSize.y) : (16 / 9);
+}
+
+function getRenderTargetSizeForVideoExport(resolutionMode, aspectMode){
+  const normalizedAspectMode = normalizeVideoAspectMode(aspectMode);
+  if(resolutionMode === 'source' && normalizedAspectMode === 'source') return null;
+
+  const baseSize = renderer.getSize(new THREE.Vector2());
+  const baseLongEdge = Math.max(2, Math.round(Math.max(baseSize.x || 0, baseSize.y || 0) || 2));
+  const longEdge = resolutionMode === 'source' ? baseLongEdge : VIDEO_RESOLUTION_PRESETS[resolutionMode];
+  if(!longEdge) return null;
+
+  const aspect = normalizedAspectMode === 'source'
+    ? getCurrentCanvasAspect()
+    : VIDEO_ASPECT_PRESETS[normalizedAspectMode];
+
+  let targetW = longEdge;
+  let targetH = longEdge;
+  if(aspect >= 1){
+    targetH = Math.round(longEdge / aspect);
+  } else {
+    targetW = Math.round(longEdge * aspect);
+  }
+  targetW = Math.max(2, targetW - (targetW % 2));
+  targetH = Math.max(2, targetH - (targetH % 2));
+  return [targetW, targetH];
+}
+
+function resolveVideoResolutionForDevice(mode, aspectMode){
+  const target = getRenderTargetSizeForVideoExport(mode, aspectMode);
+  if(!target) return { mode, fallback:false };
+
+  const maxTex = renderer.capabilities?.maxTextureSize || 16384;
+  const maxRb = renderer.capabilities?.maxRenderbufferSize || maxTex;
+  const maxDim = Math.max(1, Math.min(maxTex, maxRb));
+
+  let current = mode;
+  while(true){
+    const size = getRenderTargetSizeForVideoExport(current, aspectMode);
+    if(size && size[0] <= maxDim && size[1] <= maxDim){
+      return { mode: current, fallback: current !== mode };
+    }
+    if(current === 'source') break;
+    current = getNextLowerVideoResolution(current);
+  }
+  return { mode:'source', fallback: mode !== 'source' };
+}
+
+function beginVideoResolutionCapture(mode, aspectMode){
+  const target = getRenderTargetSizeForVideoExport(mode, aspectMode);
+  if(!target) return () => {};
+
+  const prevDpr = renderer.getPixelRatio();
+  const prevSize = renderer.getSize(new THREE.Vector2());
+  const prevAspect = camera.aspect;
+  const targetW = target[0];
+  const targetH = target[1];
+
+  renderer.setPixelRatio(1);
+  renderer.setSize(targetW, targetH, false);
+  camera.aspect = targetW / targetH;
+  camera.updateProjectionMatrix();
+  renderNow();
+
+  return () => {
+    renderer.setPixelRatio(prevDpr);
+    renderer.setSize(prevSize.x, prevSize.y, false);
+    camera.aspect = prevAspect;
+    camera.updateProjectionMatrix();
+    renderNow();
+    updateExportScaleInfo();
+  };
+}
+
+function startRecording(){
+  if(typeof MediaRecorder === 'undefined'){
+    toast('MediaRecorder not supported in this browser.');
+    trackEvent('video_export_failed', { reason: 'mediarecorder_unsupported' });
+    return;
+  }
+  if(typeof canvas.captureStream !== 'function'){
+    toast('Canvas captureStream is not supported in this browser.');
+    trackEvent('video_export_failed', { reason: 'capture_stream_unsupported' });
+    return;
+  }
+
+  const requestedFormat = selectedVideoFormat;
+  const mime = getPreferredVideoMime(requestedFormat);
+  if(!mime){
+    toast('No supported video codec found.');
+    trackEvent('video_export_failed', { reason: 'codec_not_supported' });
+    return;
+  }
+  const extension = mime.includes('mp4') ? 'mp4' : 'webm';
+  if(requestedFormat === 'mp4' && extension !== 'mp4'){
+    toast('MP4 unsupported, falling back to WebM.');
+    trackEvent('video_export_fallback', { reason: 'requested_mp4_unsupported', actualFormat: extension });
+  }
+  let effectiveResolution = exportSettings.videoResolution;
+  let effectiveAspect = normalizeVideoAspectMode(exportSettings.videoAspect);
+  if(effectiveAspect !== exportSettings.videoAspect){
+    exportSettings.videoAspect = effectiveAspect;
+    const aspectBtn = videoAspectChipButtons.find(btn => (btn.dataset.videoAspect || 'source') === effectiveAspect);
+    if(aspectBtn) activateChip(videoAspectChipButtons, aspectBtn);
+  }
+  const resolved = resolveVideoResolutionForDevice(effectiveResolution, effectiveAspect);
+  if(resolved.fallback){
+    const label = resolved.mode === 'source' ? 'Source' : resolved.mode.toUpperCase();
+    toast(`Selected resolution unsupported on this device. Using ${label}.`);
+    effectiveResolution = resolved.mode;
+    const activeBtn = videoResChipButtons.find(btn => (btn.dataset.videoRes || 'source') === effectiveResolution);
+    if(activeBtn) activateChip(videoResChipButtons, activeBtn);
+    exportSettings.videoResolution = effectiveResolution;
+    trackEvent('video_export_fallback', {
+      reason: 'resolution_unsupported',
+      resolved: effectiveResolution,
+      aspect: effectiveAspect
+    });
+  }
+
+  const fps = Math.max(1, Math.min(120, Math.round(exportSettings.fps)));
+  const durationMs = Math.max(500, Math.round(exportSettings.durationSec * 1000));
+  const bitrate = Math.max(1_000_000, Math.round(exportSettings.bitrateMbps * 1_000_000));
+  trackEvent('video_export_started', {
+    requestedFormat,
+    actualFormat: extension,
+    resolution: effectiveResolution,
+    aspect: effectiveAspect,
+    fps,
+    bitrateMbps: exportSettings.bitrateMbps,
+    durationSec: exportSettings.durationSec
+  });
+
+  chunks = [];
+  restoreVideoResolutionCapture = beginVideoResolutionCapture(effectiveResolution, effectiveAspect);
+  renderNow();
+
+  try {
+    mediaRecorder = new MediaRecorder(canvas.captureStream(fps), {
+      mimeType: mime,
+      videoBitsPerSecond: bitrate,
+    });
+  } catch (error) {
+    if(restoreVideoResolutionCapture){
+      restoreVideoResolutionCapture();
+      restoreVideoResolutionCapture = null;
+    }
+    toast('Could not start recorder with current settings.');
+    trackEvent('video_export_failed', {
+      reason: 'recorder_start_failed',
+      format: extension,
+      resolution: effectiveResolution,
+      aspect: effectiveAspect
+    });
+    return;
+  }
+
+  mediaRecorder.ondataavailable = e => {
+    if(e.data.size > 0) chunks.push(e.data);
+  };
+
+  mediaRecorder.onerror = () => {
+    if(restoreVideoResolutionCapture){
+      restoreVideoResolutionCapture();
+      restoreVideoResolutionCapture = null;
+    }
+    toast('Recording failed.');
+    trackEvent('video_export_failed', {
+      reason: 'recorder_error',
+      format: extension,
+      resolution: effectiveResolution,
+      aspect: effectiveAspect
+    });
+    setRecordingUI(false);
+    mediaRecorder = null;
+  };
+
+  mediaRecorder.onstop = () => {
+    if(recordStopTimer){
+      clearTimeout(recordStopTimer);
+      recordStopTimer = null;
+    }
+    const blob = new Blob(chunks, { type: mime });
+    if(blob.size > 0){
+      const filename = `liquid-shape.${extension}`;
+      downloadBlob(blob, filename);
+      toast(`Video saved → ${filename}`);
+      trackEvent('video_export_success', {
+        format: extension,
+        resolution: effectiveResolution,
+        aspect: effectiveAspect,
+        fps,
+        bitrateMbps: exportSettings.bitrateMbps,
+        durationSec: exportSettings.durationSec,
+        fileSizeBytes: blob.size
+      });
+    } else {
+      if(effectiveResolution !== 'source'){
+        const retryResolution = getNextLowerVideoResolution(effectiveResolution);
+        if(retryResolution !== effectiveResolution){
+          const retryLabel = retryResolution === 'source' ? 'Source' : retryResolution.toUpperCase();
+          toast(`Empty output at ${effectiveResolution.toUpperCase()}. Retrying ${retryLabel}...`);
+          if(restoreVideoResolutionCapture){
+            restoreVideoResolutionCapture();
+            restoreVideoResolutionCapture = null;
+          }
+          const activeBtn = videoResChipButtons.find(btn => (btn.dataset.videoRes || 'source') === retryResolution);
+          if(activeBtn) activateChip(videoResChipButtons, activeBtn);
+          exportSettings.videoResolution = retryResolution;
+          trackEvent('video_export_fallback', {
+            reason: 'empty_blob_retry',
+            from: effectiveResolution,
+            to: retryResolution,
+            aspect: effectiveAspect
+          });
+          mediaRecorder = null;
+          setRecordingUI(false);
+          setTimeout(() => startRecording(), 80);
+          return;
+        }
+      }
+      toast('Recording failed (empty output).');
+      trackEvent('video_export_failed', {
+        reason: 'empty_blob',
+        format: extension,
+        resolution: effectiveResolution,
+        aspect: effectiveAspect
+      });
+    }
+    if(restoreVideoResolutionCapture){
+      restoreVideoResolutionCapture();
+      restoreVideoResolutionCapture = null;
+    }
+    mediaRecorder = null;
+    setRecordingUI(false);
+  };
+
+  mediaRecorder.start(250);
+  setRecordingUI(true);
+  recordStopTimer = setTimeout(stopRecording, durationMs);
+}
+
+recBtn.addEventListener('click', () => {
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    stopRecording();
+    return;
+  }
+  startRecording();
+});
+
+const sharedState = getShareStateFromUrl();
+if(sharedState){
+  if(applyShareState(sharedState)){
+    toast('Shared preset loaded.');
+    trackEvent('share_link_loaded', { shape: currentShape });
+  } else {
+    toast('Could not load shared preset.');
+  }
+}
+</script>
+</body>
+</html>
